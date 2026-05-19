@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "AirGuard",
+    "slug": "airguard",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "airguard",
+    "splash": {
+      "backgroundColor": "#0266F4",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.airguard.prototype"
+    },
+    "android": {
+      "package": "com.airguard.prototype",
+      "adaptiveIcon": {
+        "backgroundColor": "#0266F4"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
