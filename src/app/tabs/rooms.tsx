@@ -4,18 +4,21 @@ import { router } from "expo-router";
 import { RoomCard } from "@/components/airguard/RoomCard";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
-import { getRooms } from "@/domain/selectors";
+import { getReadingsByRoomId, getRooms } from "@/domain/selectors";
+import { routes } from "@/navigation/routes";
+import { useAirGuard } from "@/state/airguard-store";
 import { colors, radius, spacing } from "@/theme/index";
 
 export default function RoomsRoute() {
+  const { state } = useAirGuard();
   return (
     <AppScreen title="Rooms">
       <View style={styles.grid}>
-        {getRooms().map((room) => (
-          <RoomCard key={room.id} room={room} onPress={() => router.push(`/rooms/${room.id}`)} />
+        {getRooms(state).map((room) => (
+          <RoomCard key={room.id} room={room} readings={getReadingsByRoomId(state, room.id)} onPress={() => router.push(routes.roomDetail(room.id))} />
         ))}
       </View>
-      <Pressable style={styles.add}>
+      <Pressable style={styles.add} onPress={() => router.push(routes.addRoom)}>
         <AppText style={styles.addText}>+</AppText>
       </Pressable>
     </AppScreen>

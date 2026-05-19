@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { AppText } from "./AppText";
 import { getActiveAlerts } from "@/domain/selectors";
+import { useAirGuard } from "@/state/airguard-store";
 import { colors, radius, shadows, spacing } from "@/theme/index";
 
 const labels: Record<string, string> = {
@@ -13,15 +14,16 @@ const labels: Record<string, string> = {
 };
 
 const icons: Record<string, string> = {
-  home: "⌂",
-  rooms: "□",
+  home: "H",
+  rooms: "R",
   alerts: "!",
-  devices: "▯",
-  more: "•••",
+  devices: "D",
+  more: "...",
 };
 
 export function BottomTabBar({ state, descriptors, navigation }: any) {
-  const activeAlerts = getActiveAlerts().length;
+  const { state: appState } = useAirGuard();
+  const activeAlerts = getActiveAlerts(appState).length;
 
   return (
     <View style={styles.wrap}>
@@ -38,7 +40,7 @@ export function BottomTabBar({ state, descriptors, navigation }: any) {
               accessibilityRole="button"
               accessibilityState={selected ? { selected: true } : {}}
             >
-              <AppText style={[styles.icon, selected && styles.activeText]}>{icons[route.name] ?? "•"}</AppText>
+              <AppText style={[styles.icon, selected && styles.activeText]}>{icons[route.name] ?? "."}</AppText>
               <AppText style={[styles.label, selected && styles.activeText]}>{label}</AppText>
               {route.name === "alerts" && activeAlerts ? (
                 <View style={styles.badge}>

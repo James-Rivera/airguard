@@ -29,7 +29,7 @@ export function AppScreen({
       >
         {title ? (
           <View style={styles.header}>
-            {onBack ? <IconButton label="‹" onPress={onBack} /> : null}
+            {onBack ? <IconButton label="<" onPress={onBack} /> : null}
             <View style={styles.headerText}>
               <AppText variant="title">{title}</AppText>
               {subtitle ? <AppText variant="caption">{subtitle}</AppText> : null}

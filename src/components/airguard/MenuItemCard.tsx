@@ -15,7 +15,7 @@ export function MenuItemCard({ label, detail, icon, onPress }: { label: string; 
           <AppText style={styles.label}>{label}</AppText>
           <AppText variant="caption">{detail}</AppText>
         </View>
-        <AppText style={styles.more}>›</AppText>
+        <AppText style={styles.more}>{">"}</AppText>
       </AppCard>
     </Pressable>
   );

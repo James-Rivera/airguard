@@ -3,8 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppText } from "@/components/ui/AppText";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import type { Room } from "@/domain/models";
-import { getReadingsByRoomId } from "@/domain/selectors";
+import type { Reading, Room } from "@/domain/models";
 import { colors, radius, spacing } from "@/theme/index";
 
 const iconLabel = {
@@ -15,8 +14,7 @@ const iconLabel = {
   "dining-room": "Dine",
 };
 
-export function RoomCard({ room, onPress, wide = false }: { room: Room; onPress?: () => void; wide?: boolean }) {
-  const readings = getReadingsByRoomId(room.id);
+export function RoomCard({ room, readings = [], onPress, wide = false }: { room: Room; readings?: Reading[]; onPress?: () => void; wide?: boolean }) {
   const primary = readings.find((reading) => reading.type === "co2") ?? readings[0];
   const card = (
     <AppCard style={[styles.card, wide ? styles.wide : styles.grid]}>

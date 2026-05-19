@@ -8,12 +8,14 @@ import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { menuItems } from "@/domain/seed";
 import { initials } from "@/lib/formatters";
+import { useAirGuard } from "@/state/airguard-store";
 import { useSession } from "@/state/session";
 import { colors, radius, spacing } from "@/theme/index";
 
 export default function MoreRoute() {
   const { user, signOut } = useSession();
-  const safeUser = user ?? { name: "Carlo Rivera", role: "administrator" as const };
+  const { actions } = useAirGuard();
+  const safeUser = user ?? { name: "AirGuard User", role: "homeowner" as const };
 
   async function logout() {
     await signOut();
@@ -33,13 +35,23 @@ export default function MoreRoute() {
       </AppCard>
       <View style={styles.menu}>
         {menuItems.map((item) => (
-          <MenuItemCard key={item.label} label={item.label} detail={item.detail} icon={item.icon} />
+          <MenuItemCard key={item.label} label={item.label} detail={item.detail} icon={item.icon} onPress={() => navigateMenu(item.label)} />
         ))}
       </View>
-      <AppButton label="Reset Demo Data" onPress={() => undefined} variant="secondary" />
+      <AppButton label="Trigger Kitchen Smoke Alert" onPress={actions.triggerKitchenSmokeAlert} variant="danger" />
+      <AppButton label="Simulate Normal Readings" onPress={actions.simulateNormalReadings} variant="secondary" />
+      <AppButton label="Simulate Warning Readings" onPress={actions.simulateWarningReadings} variant="secondary" />
+      <AppButton label="Reset Demo Data" onPress={actions.resetDemoData} variant="secondary" />
+      <AppButton label="Clear Onboarding" onPress={actions.clearOnboarding} variant="secondary" />
       <AppButton label="Logout" onPress={logout} variant="danger" />
     </AppScreen>
   );
+}
+
+function navigateMenu(label: string) {
+  if (label === "Rooms") router.push("/tabs/rooms");
+  if (label === "Devices") router.push("/tabs/devices");
+  if (label === "Activity") router.push("/activity");
 }
 
 function roleLabel(role: string) {

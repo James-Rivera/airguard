@@ -7,13 +7,17 @@ import { RoomCard } from "@/components/airguard/RoomCard";
 import { SafetyStatusCard } from "@/components/airguard/SafetyStatusCard";
 import { AppScreen, SectionHeader } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
-import { getDashboardSummary } from "@/domain/selectors";
+import { getDashboardSummary, getReadingsByRoomId } from "@/domain/selectors";
 import { initials } from "@/lib/formatters";
+import { routes } from "@/navigation/routes";
+import { useAirGuard } from "@/state/airguard-store";
 import { colors, radius, spacing } from "@/theme/index";
 
 export default function HomeRoute() {
-  const summary = getDashboardSummary();
+  const { state } = useAirGuard();
+  const summary = getDashboardSummary(state);
   const primaryAlert = summary.criticalAlerts[0] ?? summary.activeAlerts[0];
+  const userName = summary.user?.name ?? "Guest";
 
   return (
     <AppScreen>
@@ -22,19 +26,19 @@ export default function HomeRoute() {
           <AppText style={styles.brand}>
             <AppText style={styles.brandAir}>Air</AppText>Guard
           </AppText>
-          <AppText variant="caption">Good morning, {summary.user.name.split(" ")[0]}!</AppText>
+          <AppText variant="caption">Good morning, {userName.split(" ")[0]}!</AppText>
         </View>
         <View style={styles.avatar}>
-          <AppText style={styles.avatarText}>{initials(summary.user.name)}</AppText>
+          <AppText style={styles.avatarText}>{initials(userName)}</AppText>
         </View>
       </View>
       <View style={styles.metaRow}>
-        <AppText variant="muted">{summary.home.name}</AppText>
-        <Pressable style={styles.addButton}>
+        <AppText variant="muted">{summary.home?.name ?? "No home set up"}</AppText>
+        <Pressable style={styles.addButton} onPress={() => router.push(routes.addDevice)}>
           <AppText style={styles.addText}>Add Device</AppText>
         </Pressable>
       </View>
-      <SafetyStatusCard status={summary.status} onAction={() => router.push(primaryAlert ? `/alerts/${primaryAlert.id}` : "/tabs/rooms")} />
+      <SafetyStatusCard status={summary.status === "critical" ? "critical" : "good"} onAction={() => router.push(primaryAlert ? routes.alertDetail(primaryAlert.id) : routes.rooms)} />
       <SectionHeader title="Today's Readings" />
       <View style={styles.grid}>
         {summary.readings.slice(0, 4).map((reading) => (
@@ -43,12 +47,12 @@ export default function HomeRoute() {
       </View>
       <SectionHeader title="Rooms" action={<AppText style={styles.link} onPress={() => router.push("/tabs/rooms")}>See all</AppText>} />
       {summary.rooms.slice(0, 1).map((room) => (
-        <RoomCard key={room.id} room={room} wide onPress={() => router.push(`/rooms/${room.id}`)} />
+        <RoomCard key={room.id} room={room} readings={getReadingsByRoomId(state, room.id)} wide onPress={() => router.push(routes.roomDetail(room.id))} />
       ))}
       {primaryAlert ? (
         <>
           <SectionHeader title="Alerts" />
-          <AlertCard alert={primaryAlert} onPress={() => router.push(`/alerts/${primaryAlert.id}`)} />
+          <AlertCard alert={primaryAlert} onPress={() => router.push(routes.alertDetail(primaryAlert.id))} />
         </>
       ) : null}
     </AppScreen>

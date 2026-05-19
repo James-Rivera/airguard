@@ -8,11 +8,13 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppScreen, SectionHeader } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { getAlertById, getDevicesByRoomId } from "@/domain/selectors";
+import { useAirGuard } from "@/state/airguard-store";
 import { colors, spacing } from "@/theme/index";
 
 export default function AlertDetailRoute() {
   const { alertId } = useLocalSearchParams<{ alertId: string }>();
-  const alert = getAlertById(alertId);
+  const { state, actions } = useAirGuard();
+  const alert = getAlertById(state, alertId);
 
   if (!alert) {
     return <AppScreen title="Alert Detail" subtitle="Alert not found" onBack={() => router.back()} noBottomPadding>{null}</AppScreen>;
@@ -25,14 +27,14 @@ export default function AlertDetailRoute() {
         <AppText style={styles.label}>Recommended Action</AppText>
         <AppText style={styles.action}>{alert.recommendedAction}</AppText>
       </AppCard>
-      {alert.severity !== "resolved" ? (
+      {alert.status !== "resolved" ? (
         <View style={styles.actions}>
-          <AppButton label="Start Checking" onPress={() => undefined} variant={alert.severity === "critical" ? "danger" : "primary"} style={styles.actionButton} />
-          <AppButton label="Action Taken" onPress={() => undefined} variant="secondary" style={styles.actionButton} />
+          <AppButton label={alert.status === "checking" ? "Checking" : "Start Checking"} onPress={() => actions.startCheckingAlert(alert.id)} variant={alert.severity === "critical" ? "danger" : "primary"} style={styles.actionButton} disabled={alert.status === "checking"} />
+          <AppButton label="Resolve" onPress={() => actions.resolveAlert(alert.id)} variant="secondary" style={styles.actionButton} />
         </View>
       ) : null}
       <SectionHeader title="Related Devices" />
-      {getDevicesByRoomId(alert.roomId).map((device) => (
+      {getDevicesByRoomId(state, alert.roomId).map((device) => (
         <DeviceCard key={device.id} device={device} />
       ))}
     </AppScreen>

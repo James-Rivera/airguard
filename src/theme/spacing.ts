@@ -14,4 +14,5 @@ export const layout = {
   bottomNavHeight: 88,
   bottomNavPadding: 104,
   buttonHeight: 48,
+  inputHeight: 52,
 };

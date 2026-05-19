@@ -9,6 +9,7 @@ import { colors, radius, spacing } from "@/theme/index";
 
 const deviceIcon = {
   "air-sensor": "AQ",
+  "co2-sensor": "CO2",
   "ventilation-fan": "Fan",
   "smoke-detector": "Smk",
   alarm: "Alm",
@@ -24,7 +25,7 @@ export function DeviceCard({ device }: { device: Device }) {
       <View style={styles.copy}>
         <AppText style={styles.name}>{device.name}</AppText>
         <StatusBadge status={device.status} />
-        <AppText variant="muted">{meta} • {formatRelativeMinutes(device.lastUpdatedMinutesAgo)}</AppText>
+        <AppText variant="muted">{meta} - {formatRelativeMinutes(device.lastUpdatedMinutesAgo)}</AppText>
       </View>
     </AppCard>
   );

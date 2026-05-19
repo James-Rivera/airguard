@@ -5,30 +5,24 @@ import { AlertCard } from "@/components/airguard/AlertCard";
 import { FilterPill } from "@/components/airguard/FilterPill";
 import { SummaryCard } from "@/components/airguard/SummaryCard";
 import { AppScreen } from "@/components/ui/AppScreen";
-import { getActiveAlerts, getAlerts, getCriticalAlerts } from "@/domain/selectors";
+import { getActiveAlerts, getAlertsByFilter, getCriticalAlerts } from "@/domain/selectors";
+import { routes } from "@/navigation/routes";
+import { useAirGuard } from "@/state/airguard-store";
 import { spacing } from "@/theme/index";
 
 type Filter = "All" | "Active" | "Critical" | "Resolved";
 
 export default function AlertsRoute() {
   const [filter, setFilter] = useState<Filter>("All");
-  const alerts = getAlerts();
-  const shown = useMemo(
-    () =>
-      alerts.filter((alert) => {
-        if (filter === "Active") return alert.severity !== "resolved";
-        if (filter === "Critical") return alert.severity === "critical";
-        if (filter === "Resolved") return alert.severity === "resolved";
-        return true;
-      }),
-    [alerts, filter],
-  );
+  const { state } = useAirGuard();
+  const alerts = state.alerts;
+  const shown = useMemo(() => getAlertsByFilter(state, filter), [state, filter]);
 
   return (
     <AppScreen title="Alerts">
       <View style={styles.summary}>
-        <SummaryCard label="Total Alerts" value={alerts.length} detail={`${getActiveAlerts().length} active`} />
-        <SummaryCard label="Problems Detected" value={getCriticalAlerts().length} detail="Needs attention" />
+        <SummaryCard label="Total Alerts" value={alerts.length} detail={`${getActiveAlerts(state).length} active`} />
+        <SummaryCard label="Problems Detected" value={getCriticalAlerts(state).length} detail="Needs attention" />
       </View>
       <View style={styles.filters}>
         {(["All", "Active", "Critical", "Resolved"] as Filter[]).map((item) => (
@@ -36,7 +30,7 @@ export default function AlertsRoute() {
         ))}
       </View>
       {shown.map((alert) => (
-        <AlertCard key={alert.id} alert={alert} onPress={() => router.push(`/alerts/${alert.id}`)} actionLabel={alert.severity === "resolved" ? "Details" : "Open Alert"} onAction={() => router.push(`/alerts/${alert.id}`)} />
+        <AlertCard key={alert.id} alert={alert} onPress={() => router.push(routes.alertDetail(alert.id))} actionLabel={alert.status === "resolved" ? "Details" : "Open Alert"} onAction={() => router.push(routes.alertDetail(alert.id))} />
       ))}
     </AppScreen>
   );

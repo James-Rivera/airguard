@@ -1,12 +1,14 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
+import { LogoMark } from "@/components/airguard/LogoMark";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
-import { LogoMark } from "@/components/airguard/LogoMark";
+import { TextField } from "@/components/ui/TextField";
+import { routes } from "@/navigation/routes";
 import { useSession } from "@/state/session";
-import { colors, layout, radius, spacing } from "@/theme/index";
+import { colors, radius, spacing } from "@/theme/index";
 
 export default function LoginRoute() {
   const { signIn } = useSession();
@@ -21,25 +23,25 @@ export default function LoginRoute() {
       setError("Use a local demo account to sign in.");
       return;
     }
-    router.replace("/tabs/home");
+    router.replace(routes.home);
   }
 
   return (
     <AppScreen noBottomPadding contentStyle={styles.screen}>
       <Pressable onPress={() => router.back()} style={styles.back}>
-        <AppText style={styles.backText}>‹</AppText>
+        <AppText style={styles.backText}>{"<"}</AppText>
       </Pressable>
       <View style={styles.logo}>
         <LogoMark size={42} />
       </View>
       <AppText style={styles.title}>Log in</AppText>
       <View style={styles.form}>
-        <Field label="Email Address" value={email} onChangeText={setEmail} icon="@" keyboardType="email-address" />
-        <Field
+        <TextField label="Email Address" value={email} onChangeText={setEmail} leftLabel="@" keyboardType="email-address" />
+        <TextField
           label="Password"
           value={password}
           onChangeText={setPassword}
-          icon="●"
+          leftLabel="*"
           secureTextEntry={!showPassword}
           rightLabel={showPassword ? "Hide" : "Show"}
           onRightPress={() => setShowPassword((current) => !current)}
@@ -47,31 +49,10 @@ export default function LoginRoute() {
         {error ? <AppText style={styles.error}>{error}</AppText> : null}
       </View>
       <AppButton label="Sign In" onPress={submit} />
-      <AppText style={styles.newUser}>I'm a new user. Sign In</AppText>
+      <Pressable onPress={() => router.replace(routes.createAccount)}>
+        <AppText style={styles.newUser}>New to AirGuard? Create an account</AppText>
+      </Pressable>
     </AppScreen>
-  );
-}
-
-function Field({
-  label,
-  icon,
-  rightLabel,
-  onRightPress,
-  ...props
-}: React.ComponentProps<typeof TextInput> & { label: string; icon: string; rightLabel?: string; onRightPress?: () => void }) {
-  return (
-    <View style={styles.field}>
-      <AppText style={styles.fieldLabel}>{label}</AppText>
-      <View style={styles.inputRow}>
-        <AppText style={styles.inputIcon}>{icon}</AppText>
-        <TextInput {...props} placeholderTextColor={colors.textMuted} autoCapitalize="none" style={styles.input} />
-        {rightLabel ? (
-          <Pressable onPress={onRightPress} hitSlop={8}>
-            <AppText style={styles.rightText}>{rightLabel}</AppText>
-          </Pressable>
-        ) : null}
-      </View>
-    </View>
   );
 }
 
@@ -90,8 +71,9 @@ const styles = StyleSheet.create({
   },
   backText: {
     color: colors.textPrimary,
-    fontSize: 26,
-    lineHeight: 28,
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 22,
   },
   logo: {
     alignItems: "center",
@@ -111,41 +93,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxl,
   },
   form: {
-    gap: spacing.xxl,
-    marginTop: spacing.xs,
-  },
-  field: {
-    gap: spacing.sm,
-  },
-  fieldLabel: {
-    color: colors.fieldLabel,
-    fontSize: 14,
-    lineHeight: 16,
-  },
-  inputRow: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
     gap: spacing.md,
-    height: 32,
-    maxWidth: layout.maxPhoneWidth - 50,
-  },
-  inputIcon: {
-    color: colors.textMuted,
-    fontSize: 16,
-    width: 22,
-  },
-  input: {
-    color: colors.textPrimary,
-    flex: 1,
-    fontSize: 14,
-    height: 32,
-  },
-  rightText: {
-    color: colors.brand,
-    fontSize: 12,
-    fontWeight: "600",
+    marginTop: spacing.md,
   },
   error: {
     color: colors.critical,

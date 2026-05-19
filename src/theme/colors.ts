@@ -36,7 +36,9 @@ export const statusColors = {
   critical: colors.critical,
   offline: colors.offline,
   online: colors.success,
+  pairing: colors.brand,
   active: colors.brand,
+  checking: colors.warning,
   resolved: colors.success,
 };
 
@@ -46,6 +48,8 @@ export const statusSurfaces = {
   critical: colors.criticalSurface,
   offline: colors.offlineSurface,
   online: colors.successSurface,
+  pairing: colors.iconSurface,
   active: colors.iconSurface,
+  checking: colors.warningSurface,
   resolved: colors.successSurface,
 };

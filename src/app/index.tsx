@@ -5,12 +5,15 @@ import { router } from "expo-router";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
 import { LogoMark } from "@/components/airguard/LogoMark";
+import { routes } from "@/navigation/routes";
+import { useAirGuard } from "@/state/airguard-store";
 import { useSession } from "@/state/session";
 import { colors, gradient, layout, spacing } from "@/theme/index";
 
 export default function WelcomeRoute() {
   const [showWelcome, setShowWelcome] = useState(false);
   const { user, isLoading } = useSession();
+  const { state } = useAirGuard();
 
   useEffect(() => {
     const timer = setTimeout(() => setShowWelcome(true), 850);
@@ -18,8 +21,8 @@ export default function WelcomeRoute() {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && user) router.replace("/tabs/home");
-  }, [isLoading, user]);
+    if (!isLoading && user) router.replace(state.onboardingComplete && state.home ? routes.home : routes.onboarding);
+  }, [isLoading, state.home, state.onboardingComplete, user]);
 
   if (!showWelcome) {
     return (
@@ -41,7 +44,8 @@ export default function WelcomeRoute() {
         </LinearGradient>
       </View>
       <View style={styles.buttonArea}>
-        <AppButton label="Get Started" onPress={() => router.push("/auth/login")} />
+        <AppButton label="Create Account" onPress={() => router.push(routes.createAccount)} />
+        <AppButton label="Log In" onPress={() => router.push(routes.login)} variant="secondary" />
         <AppText style={styles.terms}>by continuing you agree to our terms & policy</AppText>
       </View>
     </View>

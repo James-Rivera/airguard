@@ -9,6 +9,7 @@ import { formatAlertTime } from "@/lib/formatters";
 import { colors, spacing } from "@/theme/index";
 
 export function AlertCard({ alert, onPress, actionLabel, onAction }: { alert: Alert; onPress?: () => void; actionLabel?: string; onAction?: () => void }) {
+  const badgeStatus = alert.status === "resolved" || alert.status === "checking" ? alert.status : alert.severity;
   const card = (
     <AppCard style={styles.card}>
       <View style={styles.header}>
@@ -16,7 +17,7 @@ export function AlertCard({ alert, onPress, actionLabel, onAction }: { alert: Al
           <AppText style={styles.title}>{alert.title}</AppText>
           <AppText variant="caption">{alert.roomName}</AppText>
         </View>
-        <StatusBadge status={alert.severity} />
+        <StatusBadge status={badgeStatus} />
       </View>
       <AppText variant="body">{alert.message}</AppText>
       <AppText style={styles.action}>Recommended action: {alert.recommendedAction}</AppText>
