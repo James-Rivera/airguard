@@ -8,12 +8,15 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed:demo-users": "node scripts/seed-demo-users.mjs",
+    "supabase": "supabase"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@supabase/supabase-js": "^2.106.0",
     "expo": "^55.0.0",
+    "expo-font": "~55.0.7",
     "expo-linear-gradient": "~55.0.14",
     "expo-router": "^55.0.14",
     "expo-status-bar": "~55.0.6",
@@ -25,6 +28,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.1.0",
+    "supabase": "^2.100.1",
     "typescript": "^5.9.0"
   }
 }

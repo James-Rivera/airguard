@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.airguard.mobile",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#0266F4"
       }

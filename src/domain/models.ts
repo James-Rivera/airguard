@@ -90,6 +90,8 @@ export type OnboardingState = {
 export type PairingDraft = {
   type?: DeviceType;
   roomId?: string;
+  roomName?: string;
+  roomIcon?: Room["icon"];
   foundDeviceName?: string;
 };
 

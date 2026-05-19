@@ -1,10 +1,10 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppIcon } from "@/components/ui/AppIcon";
 import { AppText } from "@/components/ui/AppText";
-import { LogoMark } from "./LogoMark";
-import { colors, gradient, radius, shadows, spacing } from "@/theme/index";
+import { colors, fonts, gradient, radius, shadows, spacing } from "@/theme/index";
 
 export function SafetyStatusCard({ status, onAction }: { status: "good" | "critical"; onAction: () => void }) {
   const critical = status === "critical";
@@ -27,8 +27,8 @@ export function SafetyStatusCard({ status, onAction }: { status: "good" | "criti
   return (
     <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
       <View style={styles.top}>
-        <View style={styles.logoWrap}>
-          <LogoMark size={34} />
+        <View style={styles.safeIcon}>
+          <AppIcon name="check" size={18} color={colors.white} secondaryColor={colors.white} />
         </View>
         <View style={styles.goodPill}>
           <View style={styles.dot} />
@@ -36,8 +36,10 @@ export function SafetyStatusCard({ status, onAction }: { status: "good" | "criti
         </View>
       </View>
       <AppText style={styles.heroTitle}>Your home air is safe</AppText>
-      <AppText style={styles.heroBody}>All monitored rooms are within normal range.</AppText>
-      <AppButton label="View Rooms" onPress={onAction} variant="secondary" />
+      <AppText style={styles.heroBody}>All monitored rooms are within normal air quality range.</AppText>
+      <Pressable style={styles.heroButton} onPress={onAction} accessibilityRole="button">
+        <AppText style={styles.heroButtonText}>View Rooms</AppText>
+      </Pressable>
     </LinearGradient>
   );
 }
@@ -45,9 +47,9 @@ export function SafetyStatusCard({ status, onAction }: { status: "good" | "criti
 const styles = StyleSheet.create({
   card: {
     borderRadius: radius.card,
-    gap: spacing.md,
+    gap: 14,
     minHeight: 224,
-    padding: spacing.md,
+    padding: spacing.lg,
     width: "100%",
     ...shadows.card,
   },
@@ -59,15 +61,15 @@ const styles = StyleSheet.create({
   top: {
     alignItems: "center",
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 13,
   },
-  logoWrap: {
+  safeIcon: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.22)",
-    borderRadius: radius.md,
-    height: 42,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 14,
+    height: 36,
     justifyContent: "center",
-    width: 42,
+    width: 36,
   },
   goodPill: {
     alignItems: "center",
@@ -75,8 +77,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     flexDirection: "row",
     gap: spacing.xs,
-    minHeight: 34,
-    paddingHorizontal: spacing.sm,
+    height: 36,
+    paddingHorizontal: 16,
   },
   goodPillText: {
     color: colors.white,
@@ -91,14 +93,28 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: colors.white,
-    fontSize: 30,
-    fontWeight: "700",
-    lineHeight: 36,
+    fontFamily: fonts.bold,
+    fontSize: 23,
+    lineHeight: 30,
   },
   heroBody: {
     color: colors.heroText,
+    fontFamily: fonts.regular,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 18,
+  },
+  heroButton: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: 15,
+    height: 40,
+    justifyContent: "center",
+  },
+  heroButtonText: {
+    color: colors.brand,
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    lineHeight: 18,
   },
   alertIcon: {
     alignItems: "center",

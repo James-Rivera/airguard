@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from "react-native";
 import { AppText } from "./AppText";
-import { colors, layout, radius, spacing, typography } from "@/theme/index";
+import { colors, fonts, layout, radius, spacing, typography } from "@/theme/index";
 
 type Props = TextInputProps & {
   label: string;
@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.fieldLabel,
+    fontFamily: fonts.medium,
     fontSize: 14,
     lineHeight: 18,
   },
@@ -66,19 +67,19 @@ const styles = StyleSheet.create({
   },
   sideLabel: {
     color: colors.textMuted,
+    fontFamily: fonts.bold,
     fontSize: 14,
-    fontWeight: "700",
     minWidth: 18,
   },
   rightText: {
     color: colors.brand,
+    fontFamily: fonts.bold,
     fontSize: 12,
-    fontWeight: "700",
   },
   error: {
     color: colors.critical,
+    fontFamily: fonts.semiBold,
     fontSize: 12,
-    fontWeight: "600",
     lineHeight: 16,
   },
 });

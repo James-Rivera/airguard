@@ -1,71 +1,76 @@
-import React from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useEffect } from "react";
+import { Image, StyleSheet, useWindowDimensions, View } from "react-native";
 import { router } from "expo-router";
-import { AppButton } from "@/components/ui/AppButton";
-import { AppCard } from "@/components/ui/AppCard";
-import { AppScreen } from "@/components/ui/AppScreen";
-import { AppText } from "@/components/ui/AppText";
+import { OnboardingStepLayout } from "@/components/airguard/OnboardingStepLayout";
+import { AppIcon } from "@/components/ui/AppIcon";
+import { getOnboardingResumeRoute } from "@/navigation/onboarding-flow";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
-import { colors, spacing } from "@/theme/index";
+import { colors } from "@/theme/index";
 
-export default function OnboardingIntroRoute() {
-  const { state } = useAirGuard();
-  const nextRoute = state.home ? (state.rooms.length ? routes.addFirstDevice : routes.addRooms) : routes.createHome;
+export default function OnboardingRoute() {
+  const { state, isLoading } = useAirGuard();
+  const { height } = useWindowDimensions();
+  const introTop = Math.max(86, Math.min(126, height * 0.13));
+
+  useEffect(() => {
+    if (isLoading) return;
+    const resumeRoute = getOnboardingResumeRoute(state);
+    if (resumeRoute !== routes.onboarding) router.replace(resumeRoute);
+  }, [isLoading, state]);
 
   return (
-    <AppScreen title="Set Up AirGuard" subtitle="Create the real home data that will be stored in Supabase." noBottomPadding>
-      <AppCard style={styles.card}>
-        <AppText style={styles.title}>Start with your home</AppText>
-        <AppText variant="body">AirGuard organizes safety around homes, rooms, devices, readings, and alerts.</AppText>
-      </AppCard>
-      <View style={styles.steps}>
-        <Step label="Home" done={Boolean(state.home)} />
-        <Step label="Rooms" done={state.rooms.length > 0} />
-        <Step label="First Device" done={state.devices.length > 0} />
-      </View>
-      <AppButton label="Continue Setup" onPress={() => router.push(nextRoute)} />
-    </AppScreen>
-  );
-}
-
-function Step({ label, done }: { label: string; done: boolean }) {
-  return (
-    <View style={styles.step}>
-      <View style={[styles.dot, done && styles.dotDone]} />
-      <AppText style={styles.stepText}>{label}</AppText>
-    </View>
+    <OnboardingStepLayout
+      step={1}
+      totalSteps={5}
+      title={"Your Air,\nProtected."}
+      subtitle={"Follow the steps to secure your\nliving space."}
+      primaryLabel="Start Setup"
+      onPrimaryPress={() => router.push(routes.createHome)}
+      centered
+      scrollable={false}
+      pillButton
+      primaryRightIcon="arrow-right"
+      contentStyle={[styles.content, { paddingTop: introTop }]}
+      hero={
+        <View style={styles.heroGlow}>
+          <Image source={require("../../../assets/images/onboarding-intro-glow.png")} style={styles.glowImage} resizeMode="contain" />
+          <View style={styles.heroIcon}>
+            <AppIcon name="shield" size={40} color={colors.brand} secondaryColor={colors.brand} />
+          </View>
+        </View>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: spacing.sm,
-  },
-  title: {
-    color: colors.textPrimary,
-    fontSize: 22,
-    fontWeight: "700",
-  },
-  steps: {
-    gap: spacing.sm,
-  },
-  step: {
+  heroGlow: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
+    borderRadius: 70,
+    height: 140,
+    justifyContent: "center",
+    position: "relative",
+    width: 140,
   },
-  dot: {
-    backgroundColor: colors.border,
-    borderRadius: 999,
-    height: 12,
-    width: 12,
+  glowImage: {
+    height: 140,
+    position: "absolute",
+    width: 140,
   },
-  dotDone: {
-    backgroundColor: colors.success,
+  heroIcon: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: 48,
+    height: 96,
+    justifyContent: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    width: 96,
   },
-  stepText: {
-    color: colors.textSecondary,
-    fontWeight: "600",
+  content: {
+    justifyContent: "flex-start",
   },
 });

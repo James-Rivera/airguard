@@ -18,11 +18,10 @@ export async function createHome(name: string, addressLabel?: string) {
   const user = userData.user;
   if (!user) throw new Error("No authenticated user.");
 
-  const { data, error } = await supabase
-    .from("homes")
-    .insert({ name, address_label: addressLabel || null, created_by: user.id })
-    .select("*")
-    .single();
+  const { data, error } = await supabase.rpc("create_home_for_current_user", {
+    home_name: name,
+    address_label: addressLabel || null,
+  });
   if (error) throw error;
   return mapHome(data as HomeRow);
 }

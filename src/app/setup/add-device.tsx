@@ -32,7 +32,7 @@ export default function AddDeviceRoute() {
   }
 
   return (
-    <AppScreen title="Add Device" subtitle="Simulate pairing, then save the device to Supabase." onBack={() => router.back()} noBottomPadding>
+    <AppScreen title="Add Device" subtitle="Pair a device to your home." onBack={() => router.back()} noBottomPadding>
       <AppText style={styles.label}>Device Type</AppText>
       <View style={styles.wrap}>
         {deviceTypes.map((item) => (

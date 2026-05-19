@@ -11,8 +11,9 @@ export const spacing = {
 export const layout = {
   maxPhoneWidth: 390,
   screenPadding: 25,
-  bottomNavHeight: 88,
-  bottomNavPadding: 104,
+  bottomNavHorizontalMargin: 20,
+  bottomNavHeight: 72,
+  bottomNavPadding: 124,
   buttonHeight: 48,
   inputHeight: 52,
 };

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { ImageBackground, Pressable, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
+import { AirGuardWordmark } from "@/components/airguard/AirGuardWordmark";
 import { LogoMark } from "@/components/airguard/LogoMark";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
@@ -27,27 +27,24 @@ export default function WelcomeRoute() {
   if (!showWelcome) {
     return (
       <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.splash}>
-        <LogoMark size={125} />
+        <LogoMark size={92} />
       </LinearGradient>
     );
   }
 
   return (
     <View style={styles.root}>
-      <View style={styles.hero}>
-        <LinearGradient colors={["rgba(2,102,244,0.96)", "rgba(10,202,197,0.82)"]} style={styles.heroOverlay}>
-          <View style={styles.heroCopy}>
-            <LogoMark size={78} />
-            <AppText style={styles.heroTitle}>AirGuard</AppText>
-            <AppText style={styles.heroBody}>Smart room-by-room air safety for your home.</AppText>
+      <ImageBackground source={require("../../assets/images/welcome-purifier-figma.jpg")} resizeMode="cover" style={styles.heroImage}>
+        <View style={styles.imageOverlay}>
+          <AirGuardWordmark markSize={68} titleSize={36} subtitle="Safer air, smarter homes." light style={styles.brandLockup} />
+          <View style={styles.bottomContent}>
+            <Pressable style={styles.getStartedButton} onPress={() => router.push(routes.login)}>
+              <AppText style={styles.getStartedText}>Get Started</AppText>
+            </Pressable>
+            <AppText style={styles.terms}>by continuing you agree to our terms & policy</AppText>
           </View>
-        </LinearGradient>
-      </View>
-      <View style={styles.buttonArea}>
-        <AppButton label="Create Account" onPress={() => router.push(routes.createAccount)} />
-        <AppButton label="Log In" onPress={() => router.push(routes.login)} variant="secondary" />
-        <AppText style={styles.terms}>by continuing you agree to our terms & policy</AppText>
-      </View>
+        </View>
+      </ImageBackground>
     </View>
   );
 }
@@ -55,7 +52,7 @@ export default function WelcomeRoute() {
 const styles = StyleSheet.create({
   root: {
     alignSelf: "center",
-    backgroundColor: colors.background,
+    backgroundColor: colors.black,
     flex: 1,
     maxWidth: layout.maxPhoneWidth,
     width: "100%",
@@ -65,38 +62,43 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
   },
-  hero: {
+  heroImage: {
     flex: 1,
   },
-  heroOverlay: {
+  imageOverlay: {
+    backgroundColor: "rgba(0,0,0,0.28)",
     flex: 1,
-    justifyContent: "flex-end",
-    padding: spacing.xl,
+    justifyContent: "space-between",
+    paddingBottom: 62,
+    paddingHorizontal: 18,
+    paddingTop: 150,
   },
-  heroCopy: {
+  brandLockup: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "center",
+  },
+  bottomContent: {
     gap: spacing.sm,
-    paddingBottom: 54,
   },
-  heroTitle: {
+  getStartedButton: {
+    alignItems: "center",
+    backgroundColor: colors.brand,
+    borderRadius: 18,
+    height: layout.buttonHeight,
+    justifyContent: "center",
+  },
+  getStartedText: {
     color: colors.white,
-    fontSize: 38,
-    fontWeight: "700",
-    lineHeight: 44,
-  },
-  heroBody: {
-    color: colors.white,
-    fontSize: 17,
-    lineHeight: 24,
-  },
-  buttonArea: {
-    gap: spacing.sm,
-    minHeight: 201,
-    paddingHorizontal: spacing.xl,
-    paddingTop: 61,
+    fontSize: 15,
+    fontWeight: "600",
   },
   terms: {
-    color: colors.textMuted,
+    color: colors.white,
     fontSize: 12,
+    lineHeight: 20,
+    opacity: 0.8,
     textAlign: "center",
   },
 });

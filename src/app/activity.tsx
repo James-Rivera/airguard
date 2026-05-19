@@ -12,9 +12,9 @@ import { colors, spacing } from "@/theme/index";
 export default function ActivityRoute() {
   const { state } = useAirGuard();
   return (
-    <AppScreen title="Activity" subtitle="Recent Supabase-backed app events." onBack={() => router.back()} noBottomPadding>
+    <AppScreen title="Activity" subtitle="Recent home safety activity." onBack={() => router.back()} noBottomPadding>
       {state.activityLogs.length === 0 ? (
-        <EmptyState title="No activity yet" message="Create rooms, add devices, or run demo controls to build a real activity history." />
+        <EmptyState title="No activity yet" message="Create rooms, add devices, or run safety actions to build an activity history." />
       ) : (
         state.activityLogs.map((item) => (
           <AppCard key={item.id} style={styles.item}>

@@ -1,9 +1,11 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppIcon, type AppIconName } from "./AppIcon";
 import { AppText } from "./AppText";
 import { getActiveAlerts } from "@/domain/selectors";
 import { useAirGuard } from "@/state/airguard-store";
-import { colors, radius, shadows, spacing } from "@/theme/index";
+import { colors, fonts, layout, radius, shadows } from "@/theme/index";
 
 const labels: Record<string, string> = {
   home: "Home",
@@ -13,21 +15,28 @@ const labels: Record<string, string> = {
   more: "More",
 };
 
-const icons: Record<string, string> = {
-  home: "H",
-  rooms: "R",
-  alerts: "!",
-  devices: "D",
-  more: "...",
+const icons: Record<string, AppIconName> = {
+  home: "home",
+  rooms: "rooms",
+  alerts: "alert",
+  devices: "device",
+  more: "more",
 };
 
 export function BottomTabBar({ state, descriptors, navigation }: any) {
   const { state: appState } = useAirGuard();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const activeAlerts = getActiveAlerts(appState).length;
+  const compact = width < 360;
+  const margin = compact ? 16 : layout.bottomNavHorizontalMargin;
+  const barWidth = Math.max(288, Math.min(width - margin * 2, layout.maxPhoneWidth - layout.bottomNavHorizontalMargin * 2));
+  const activeWidth = compact ? 72 : 82;
+  const inactiveWidth = compact ? 50 : 58;
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.bar}>
+    <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(8, insets.bottom + 4) }]}>
+      <View style={[styles.bar, { width: barWidth }]}>
         {state.routes.map((route: any, index: number) => {
           const selected = state.index === index;
           const options = descriptors[route.key]?.options ?? {};
@@ -36,11 +45,16 @@ export function BottomTabBar({ state, descriptors, navigation }: any) {
             <Pressable
               key={route.key}
               onPress={() => navigation.navigate(route.name)}
-              style={[styles.item, selected && styles.itemActive]}
+              style={[styles.item, { width: selected ? activeWidth : inactiveWidth }, selected && styles.itemActive]}
               accessibilityRole="button"
               accessibilityState={selected ? { selected: true } : {}}
             >
-              <AppText style={[styles.icon, selected && styles.activeText]}>{icons[route.name] ?? "."}</AppText>
+              <AppIcon
+                name={icons[route.name] ?? "more"}
+                size={selected ? 21 : 19}
+                color={selected ? colors.textPrimary : colors.textMuted}
+                secondaryColor={selected ? colors.textPrimary : colors.textMuted}
+              />
               <AppText style={[styles.label, selected && styles.activeText]}>{label}</AppText>
               {route.name === "alerts" && activeAlerts ? (
                 <View style={styles.badge}>
@@ -57,50 +71,46 @@ export function BottomTabBar({ state, descriptors, navigation }: any) {
 
 const styles = StyleSheet.create({
   wrap: {
-    bottom: 4,
+    alignItems: "center",
     left: 0,
-    paddingHorizontal: spacing.lg,
     position: "absolute",
     right: 0,
   },
   bar: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.98)",
-    borderColor: colors.border,
-    borderRadius: 28,
+    backgroundColor: colors.navShell,
+    borderColor: "rgba(255,255,255,0.78)",
+    borderRadius: radius.pill,
     borderWidth: 1,
     flexDirection: "row",
-    height: 78,
+    height: layout.bottomNavHeight,
     justifyContent: "space-between",
-    padding: spacing.xs,
-    ...shadows.card,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    ...shadows.bottomNav,
   },
   item: {
     alignItems: "center",
-    borderRadius: radius.lg,
+    borderRadius: radius.pill,
+    gap: 4,
     height: "100%",
     justifyContent: "center",
     position: "relative",
-    width: 56,
   },
   itemActive: {
-    backgroundColor: colors.iconSurface,
-    width: 78,
-  },
-  icon: {
-    color: colors.textMuted,
-    fontSize: 17,
-    fontWeight: "700",
-    lineHeight: 20,
+    backgroundColor: colors.navActive,
   },
   label: {
     color: colors.textMuted,
+    fontFamily: fonts.medium,
     fontSize: 11,
-    fontWeight: "600",
-    marginTop: 2,
+    lineHeight: 13,
   },
   activeText: {
     color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    lineHeight: 14,
   },
   badge: {
     alignItems: "center",

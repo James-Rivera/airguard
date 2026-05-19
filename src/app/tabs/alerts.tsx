@@ -5,6 +5,7 @@ import { AlertCard } from "@/components/airguard/AlertCard";
 import { FilterPill } from "@/components/airguard/FilterPill";
 import { SummaryCard } from "@/components/airguard/SummaryCard";
 import { AppScreen } from "@/components/ui/AppScreen";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { getActiveAlerts, getAlertsByFilter, getCriticalAlerts } from "@/domain/selectors";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
@@ -29,8 +30,15 @@ export default function AlertsRoute() {
           <FilterPill key={item} label={item} active={filter === item} onPress={() => setFilter(item)} />
         ))}
       </View>
+      {shown.length === 0 ? <EmptyState title="No alerts here" message="AirGuard will show safety events here when a room needs attention." /> : null}
       {shown.map((alert) => (
-        <AlertCard key={alert.id} alert={alert} onPress={() => router.push(routes.alertDetail(alert.id))} actionLabel={alert.status === "resolved" ? "Details" : "Open Alert"} onAction={() => router.push(routes.alertDetail(alert.id))} />
+        <AlertCard
+          key={alert.id}
+          alert={alert}
+          onPress={() => router.push(routes.alertDetail(alert.id))}
+          actionLabel={alert.status === "resolved" ? "Details" : alert.status === "checking" ? "Checking" : "Start Checking"}
+          onAction={() => router.push(routes.alertDetail(alert.id))}
+        />
       ))}
     </AppScreen>
   );
@@ -43,7 +51,7 @@ const styles = StyleSheet.create({
   },
   filters: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: spacing.xs,
+    justifyContent: "space-between",
   },
 });

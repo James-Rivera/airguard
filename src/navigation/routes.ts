@@ -6,6 +6,8 @@ export const routes = {
   createHome: "/onboarding/create-home",
   addRooms: "/onboarding/add-rooms",
   addFirstDevice: "/onboarding/add-first-device",
+  addSensorProfile: "/onboarding/add-first-device",
+  assignSensorRoom: "/onboarding/add-rooms",
   reviewSetup: "/onboarding/review-setup",
   home: "/tabs/home",
   rooms: "/tabs/rooms",

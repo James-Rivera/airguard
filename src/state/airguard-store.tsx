@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { AirGuardData, DeviceType, Home, User } from "@/domain/models";
+import type { AirGuardData, DeviceType, Home, Room, User } from "@/domain/models";
 import { demoDevices, demoRooms } from "@/domain/seed";
 import * as activityService from "@/services/activity-service";
 import * as alertService from "@/services/alert-service";
@@ -14,11 +14,13 @@ type StoreActions = {
   bootstrapApp: () => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<boolean>;
-  loginDemo: (email?: string, password?: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   logout: () => Promise<void>;
   loadHomeData: () => Promise<void>;
   createHome: (name: string, address?: string) => Promise<void>;
+  prepareSensorProfile: (type: DeviceType) => void;
+  prepareSensorRoom: (room: { id?: string; name: string; icon?: Room["icon"] }) => void;
+  completeOnboardingSetup: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
   addRoom: (name: string) => Promise<void>;
   startDevicePairing: (type?: DeviceType, roomId?: string) => Promise<void>;
@@ -141,13 +143,6 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
           return true;
         }).catch(() => false);
       },
-      async loginDemo(email = "homeowner@airguard.demo", password = "airguard123") {
-        return run(async () => {
-          await authService.signIn(email.trim(), password);
-          await bootstrapApp();
-          return true;
-        }).catch(() => false);
-      },
       async signOut() {
         await run(async () => {
           await authService.signOut();
@@ -168,10 +163,50 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
           await loadHomeDataFor(home, state.currentUser, state.onboardingComplete);
         });
       },
+      prepareSensorProfile(type) {
+        setState((current) => ({ ...current, pairingDraft: { ...current.pairingDraft, type } }));
+      },
+      prepareSensorRoom(room) {
+        setState((current) => ({ ...current, pairingDraft: { ...current.pairingDraft, roomId: room.id, roomName: room.name, roomIcon: room.icon } }));
+      },
+      async completeOnboardingSetup() {
+        await run(async () => {
+          if (!state.home) throw new Error("Create a home before starting monitoring.");
+
+          const deviceType = state.pairingDraft.type ?? state.devices[0]?.type ?? "air-sensor";
+          let targetRoom = state.pairingDraft.roomId ? state.rooms.find((room) => room.id === state.pairingDraft.roomId) : undefined;
+
+          if (!targetRoom) {
+            const roomName = state.pairingDraft.roomName?.trim() || state.rooms[0]?.name || "Bedroom";
+            targetRoom = state.rooms.find((room) => room.name.toLowerCase() === roomName.toLowerCase());
+            if (!targetRoom) {
+              targetRoom = await roomService.addRoom(state.home.id, { name: roomName, type: state.pairingDraft.roomIcon });
+              await activityService.createActivityLog(state.home.id, "room", "Room added", `${targetRoom.name} is now monitored.`);
+            }
+          }
+
+          const existingDevice = state.devices.find((device) => device.roomId === targetRoom.id && device.type === deviceType);
+          if (!existingDevice) {
+            const device = await deviceService.addDevice(state.home.id, targetRoom.id, {
+              name: `${targetRoom.name} ${sensorProfileLabel(deviceType)}`,
+              type: deviceType,
+              batteryLevel: deviceType === "ventilation-fan" || deviceType === "alarm" ? undefined : 100,
+              powerConnected: deviceType === "ventilation-fan" || deviceType === "alarm",
+            });
+            await insertInitialReading(state.home.id, targetRoom.id, device.id, deviceType);
+            await activityService.createActivityLog(state.home.id, "device", "Sensor profile added", `${sensorProfileLabel(deviceType)} is monitoring ${targetRoom.name}.`);
+          }
+
+          const profile = await profileService.updateOnboardingComplete(true);
+          await activityService.createActivityLog(state.home.id, "home", "Setup completed", "Home safety profile is ready to monitor.");
+          setState((current) => ({ ...current, currentUser: profile, onboardingComplete: true, pairingDraft: {} }));
+          await loadHomeDataFor(state.home, profile, true);
+        });
+      },
       async completeOnboarding() {
         await run(async () => {
           const profile = await profileService.updateOnboardingComplete(true);
-          if (state.home) await activityService.createActivityLog(state.home.id, "demo", "Setup completed", "Initial AirGuard setup was completed.");
+          if (state.home) await activityService.createActivityLog(state.home.id, "home", "Setup completed", "Initial AirGuard setup was completed.");
           setState((current) => ({ ...current, currentUser: profile, onboardingComplete: true }));
           if (state.home) await loadHomeDataFor(state.home, profile, true);
         });
@@ -186,7 +221,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
       },
       async startDevicePairing(type, roomId) {
         setState((current) => ({ ...current, pairingDraft: { ...current.pairingDraft, type, roomId } }));
-        if (state.home) await activityService.createActivityLog(state.home.id, "device", "Device pairing started", "Searching for nearby AirGuard devices.");
+        if (state.home) await activityService.createActivityLog(state.home.id, "device", "Sensor profile selected", "A sensor profile was prepared for setup.");
       },
       async finishDevicePairing() {
         setState((current) => ({ ...current, pairingDraft: { ...current.pairingDraft, foundDeviceName: "AirGuard Sensor" } }));
@@ -195,7 +230,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
         await run(async () => {
           if (!state.home) throw new Error("Create a home before adding devices.");
           const targetRoomId = roomId ?? state.pairingDraft.roomId ?? state.rooms[0]?.id;
-          if (!targetRoomId) throw new Error("Add a room before pairing a device.");
+          if (!targetRoomId) throw new Error("Add a room before adding a sensor profile.");
           const deviceType = type ?? state.pairingDraft.type ?? "air-sensor";
           const room = state.rooms.find((item) => item.id === targetRoomId);
           const device = await deviceService.addDevice(state.home.id, targetRoomId, {
@@ -224,7 +259,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
         await run(async () => {
           if (!state.home) return;
           await readingService.simulateNormalReadings(state.home.id);
-          await activityService.createActivityLog(state.home.id, "reading", "Normal readings simulated", "All demo readings returned to a safe range.");
+          await activityService.createActivityLog(state.home.id, "reading", "Readings updated", "All readings returned to a safe range.");
           await loadHomeDataFor(state.home);
         });
       },
@@ -232,7 +267,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
         await run(async () => {
           if (!state.home) return;
           await readingService.simulateWarningReadings(state.home.id);
-          await activityService.createActivityLog(state.home.id, "reading", "Warning readings simulated", "AirGuard inserted warning readings for the active home.");
+          await activityService.createActivityLog(state.home.id, "reading", "Warning readings recorded", "AirGuard recorded warning readings for the active home.");
           await loadHomeDataFor(state.home);
         });
       },
@@ -241,7 +276,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
           if (!state.home) return;
           await readingService.simulateCriticalReadings(state.home.id);
           await alertService.triggerKitchenSmokeAlert(state.home.id);
-          await activityService.createActivityLog(state.home.id, "alert", "Critical alert triggered", "Smoke simulation created a critical alert.");
+          await activityService.createActivityLog(state.home.id, "alert", "Critical alert triggered", "Critical smoke alert recorded.");
           await loadHomeDataFor(state.home);
         });
       },
@@ -250,7 +285,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
           if (!state.home) return;
           await readingService.simulateCriticalReadings(state.home.id);
           await alertService.triggerKitchenSmokeAlert(state.home.id);
-          await activityService.createActivityLog(state.home.id, "alert", "Kitchen smoke alert triggered", "Demo smoke alert was persisted to Supabase.");
+          await activityService.createActivityLog(state.home.id, "alert", "Kitchen smoke alert triggered", "Kitchen smoke alert was recorded.");
           await loadHomeDataFor(state.home);
         });
       },
@@ -295,7 +330,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
             }
           }
           await readingService.simulateNormalReadings(state.home.id);
-          await activityService.createActivityLog(state.home.id, "demo", "Demo data reset", "Demo room, device, and normal reading templates were applied.");
+          await activityService.createActivityLog(state.home.id, "home", "Home data reset", "Room, device, and normal reading templates were applied.");
           await loadHomeDataFor(state.home);
         });
       },
@@ -308,7 +343,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
             }
           }
           await readingService.simulateNormalReadings(state.home.id);
-          await activityService.createActivityLog(state.home.id, "demo", "Demo data reset", "Demo room and reading templates were applied.");
+          await activityService.createActivityLog(state.home.id, "home", "Home data reset", "Room and reading templates were applied.");
           await loadHomeDataFor(state.home);
         });
       },
@@ -358,6 +393,12 @@ function deviceLabel(type: DeviceType) {
   if (type === "ventilation-fan") return "Ventilation Fan";
   if (type === "alarm") return "Alarm";
   return "Air Sensor";
+}
+
+function sensorProfileLabel(type: DeviceType) {
+  if (type === "smoke-detector") return "Smoke Sensor";
+  if (type === "co2-sensor") return "CO2 Sensor";
+  return "Air Quality Sensor";
 }
 
 async function insertInitialReading(homeId: string, roomId: string, deviceId: string, type: DeviceType) {

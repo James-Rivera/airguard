@@ -15,7 +15,7 @@ export default function AddRoomRoute() {
   }
 
   return (
-    <AppScreen title="Add Room" subtitle="Create a monitored room in Supabase." onBack={() => router.back()} noBottomPadding>
+    <AppScreen title="Add Room" subtitle="Create a monitored room." onBack={() => router.back()} noBottomPadding>
       <TextField label="Room Name" value={name} onChangeText={setName} placeholder="Kitchen, Nursery, Office" />
       <AppButton label="Add Room" onPress={submit} disabled={!name.trim()} />
     </AppScreen>

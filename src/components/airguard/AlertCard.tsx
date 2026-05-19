@@ -6,23 +6,25 @@ import { AppText } from "@/components/ui/AppText";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Alert } from "@/domain/models";
 import { formatAlertTime } from "@/lib/formatters";
-import { colors, spacing } from "@/theme/index";
+import { colors, fonts, radius, spacing } from "@/theme/index";
 
 export function AlertCard({ alert, onPress, actionLabel, onAction }: { alert: Alert; onPress?: () => void; actionLabel?: string; onAction?: () => void }) {
   const badgeStatus = alert.status === "resolved" || alert.status === "checking" ? alert.status : alert.severity;
   const card = (
-    <AppCard style={styles.card}>
+    <AppCard subtleShadow style={[styles.card, alert.severity === "critical" && styles.criticalCard]}>
       <View style={styles.header}>
         <View style={styles.titleGroup}>
           <AppText style={styles.title}>{alert.title}</AppText>
-          <AppText variant="caption">{alert.roomName}</AppText>
+          <AppText style={styles.room}>{alert.roomName}</AppText>
         </View>
         <StatusBadge status={badgeStatus} />
       </View>
-      <AppText variant="body">{alert.message}</AppText>
+      <AppText style={styles.message}>{alert.message}</AppText>
       <AppText style={styles.action}>Recommended action: {alert.recommendedAction}</AppText>
       <AppText variant="muted">{formatAlertTime(alert.createdAt)}</AppText>
-      {actionLabel && onAction ? <AppButton label={actionLabel} onPress={onAction} variant={alert.severity === "critical" ? "danger" : "primary"} /> : null}
+      {actionLabel && onAction ? (
+        <AppButton label={actionLabel} onPress={onAction} variant={alert.severity === "critical" ? "danger" : "primary"} style={styles.button} />
+      ) : null}
     </AppCard>
   );
   return onPress ? <Pressable onPress={onPress}>{card}</Pressable> : card;
@@ -32,7 +34,11 @@ const styles = StyleSheet.create({
   card: {
     gap: spacing.sm,
     minHeight: 176,
+    padding: spacing.md,
     width: "100%",
+  },
+  criticalCard: {
+    borderColor: colors.borderDanger,
   },
   header: {
     alignItems: "center",
@@ -46,13 +52,30 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
     fontSize: 16,
-    fontWeight: "600",
+    lineHeight: 22,
+  },
+  room: {
+    color: colors.textSecondary,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  message: {
+    color: colors.textSecondary,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
   },
   action: {
     color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
     fontSize: 14,
-    fontWeight: "600",
     lineHeight: 20,
+  },
+  button: {
+    borderRadius: radius.md,
+    height: 40,
   },
 });
