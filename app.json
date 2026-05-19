@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "airguard",
+    "plugins": ["expo-router"],
     "splash": {
       "backgroundColor": "#0266F4",
       "resizeMode": "contain"

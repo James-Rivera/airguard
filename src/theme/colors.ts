@@ -1,0 +1,51 @@
+export const colors = {
+  brand: "#0266F4",
+  brandCyan: "#049CE0",
+  accent: "#0ACAC5",
+  success: "#22C55E",
+  warning: "#EAB308",
+  critical: "#EF4444",
+  offline: "#94A3B8",
+  background: "#FFFFFF",
+  appBackground: "#F6FAFC",
+  surface: "#FFFFFF",
+  surfaceSubtle: "#F6FAFC",
+  iconSurface: "#EAF3FF",
+  successSurface: "#ECFDF3",
+  warningSurface: "#FEFCE8",
+  criticalSurface: "#FEECEC",
+  offlineSurface: "#F8FAFC",
+  border: "#E2E8F0",
+  borderStrong: "#94A3B8",
+  borderDanger: "#FECACA",
+  fieldLabel: "#A2A2A7",
+  leaf: "#97E157",
+  heroText: "#EAF7FF",
+  textPrimary: "#06264A",
+  textSecondary: "#475569",
+  textMuted: "#94A3B8",
+  white: "#FFFFFF",
+  black: "#000000",
+};
+
+export const gradient = [colors.brand, colors.brandCyan, colors.accent] as const;
+
+export const statusColors = {
+  good: colors.success,
+  warning: colors.warning,
+  critical: colors.critical,
+  offline: colors.offline,
+  online: colors.success,
+  active: colors.brand,
+  resolved: colors.success,
+};
+
+export const statusSurfaces = {
+  good: colors.successSurface,
+  warning: colors.warningSurface,
+  critical: colors.criticalSurface,
+  offline: colors.offlineSurface,
+  online: colors.successSurface,
+  active: colors.iconSurface,
+  resolved: colors.successSurface,
+};
