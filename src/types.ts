@@ -2,16 +2,46 @@ export type AccountRole = "Homeowner" | "Safety Officer" | "Administrator";
 export type SafetyStatus = "Good" | "Moderate" | "Warning" | "Critical" | "Offline";
 export type DeviceStatus = "Online" | "Warning" | "Offline";
 export type AlertStatus = "New" | "Checking" | "Action Taken" | "Resolved";
-export type DemoScenario = "Normal" | "High CO2" | "Smoke" | "Offline" | "Ventilation";
+export type DemoScenario = "Normal Reading" | "High CO2" | "Smoke Detected" | "Sensor Offline" | "Poor Ventilation";
 export type MainTab = "Home" | "Rooms" | "Alerts" | "Devices" | "More";
-export type ScreenName = MainTab | "Splash" | "Accounts" | "Kitchen" | "AlertDetail" | "Risks" | "Activity" | "Checklist" | "Reports";
+export type ScreenName =
+  | MainTab
+  | "Splash"
+  | "Accounts"
+  | "Kitchen"
+  | "AlertDetail"
+  | "Risks"
+  | "Activity"
+  | "Checklist"
+  | "Reports"
+  | "DemoControls"
+  | "Settings";
 
 export type Account = {
   id: string;
   name: string;
+  email: string;
+  password: string;
   role: AccountRole;
   initials: string;
+  homeName: string;
   description: string;
+};
+
+export type Session = {
+  userId: string;
+  name: string;
+  email: string;
+  role: AccountRole;
+  homeName: string;
+  loginAt: string;
+  isDemo: true;
+};
+
+export type HomeProfile = {
+  name: string;
+  location: string;
+  lastSystemSync: string;
 };
 
 export type Room = {
@@ -37,6 +67,8 @@ export type Device = {
   latestReading: string;
   powerStatus: string;
   lastChecked: string;
+  firmwareVersion: string;
+  signalStrength: string;
 };
 
 export type Reading = {
@@ -96,7 +128,7 @@ export type RiskItem = {
   score: number;
 };
 
-export type ChecklistGroup = "Access Control" | "Alert Response" | "Risk Management" | "Data Safety";
+export type ChecklistGroup = "Account Access" | "Alert Response" | "Home Readiness" | "System Readiness";
 
 export type ChecklistItem = {
   id: string;
@@ -107,6 +139,8 @@ export type ChecklistItem = {
 
 export type AppData = {
   selectedAccountId: string | null;
+  home: HomeProfile;
+  reportGeneratedAt: string;
   rooms: Room[];
   devices: Device[];
   readings: Reading[];
@@ -114,4 +148,22 @@ export type AppData = {
   activityItems: ActivityItem[];
   risks: RiskItem[];
   checklistItems: ChecklistItem[];
+};
+
+export type RolePermissions = {
+  canManageAlerts: boolean;
+  canUseSimulationTools: boolean;
+  canResetDemo: boolean;
+  canViewSafetyTools: boolean;
+};
+
+export type ReportSummary = {
+  totalAlerts: number;
+  activeAlerts: number;
+  resolvedAlerts: number;
+  highestRisk: SafetyStatus;
+  highestRiskLabel: string;
+  readiness: number;
+  recentActions: ActivityItem[];
+  generatedAt: string;
 };

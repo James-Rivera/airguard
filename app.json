@@ -12,10 +12,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.airguard.prototype"
+      "bundleIdentifier": "com.airguard.mobile"
     },
     "android": {
-      "package": "com.airguard.prototype",
+      "package": "com.airguard.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#0266F4"
       }

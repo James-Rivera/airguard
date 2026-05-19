@@ -1,15 +1,28 @@
 # AirGuard Expo MVP
 
-AirGuard is a native Expo prototype for smart indoor air monitoring. The app is built for the mobile Figma direction: native splash feel, account selection, phone-sized screens, rounded cards, and pill-style bottom navigation.
+AirGuard is an Expo / React Native mobile MVP for smart home air safety.
 
-## What This Prototype Does
+AirGuard is an official-feeling MVP with simulated sensors, local demo accounts, and local MVP storage. The mobile flow is designed to feel production-style without connecting to real services yet.
 
-- Shows the AirGuard splash screen with the exact shield/leaf logo drawn in native SVG.
-- Uses demo accounts instead of role-only login.
-- Stores mock app state with AsyncStorage.
-- Simulates smart-home hardware events: Smoke, High CO2, Offline, Ventilation, and Normal.
-- Supports Home, Rooms, Kitchen detail, Alerts, Alert Detail, Devices, More, Risks, Activity, Safety Checklist, and Reports.
+## What The MVP Does
+
+- Shows a native welcome screen and realistic demo login flow.
+- Persists a local demo session with AsyncStorage key `airguard.session`.
+- Stores local app state, alerts, activity, checklist, reports, rooms, and devices with AsyncStorage.
+- Uses simulated but believable sensor data for Rivera Residence in Sto. Tomas, Batangas.
+- Simulates Normal Reading, High CO2, Smoke Detected, Sensor Offline, and Poor Ventilation.
+- Supports Home, Rooms, Kitchen detail, Alerts, Alert Detail, Devices, More, Risks, Activity, Safety Checklist, Reports, Simulation Tools, and Settings.
 - Keeps the alert workflow: New, Checking, Action Taken, Resolved.
+
+## Demo Accounts
+
+All accounts are local demo credentials for the MVP.
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Homeowner | `homeowner@airguard.demo` | `airguard123` |
+| Safety Officer | `safety@airguard.demo` | `airguard123` |
+| Administrator | `admin@airguard.demo` | `airguard123` |
 
 ## Run
 
@@ -23,29 +36,28 @@ Then open the project with Expo Go, an emulator, or a development build.
 ## Useful Commands
 
 ```bash
-npm run android
-npm run ios
-npm run web
 npm run typecheck
 npx expo config --type public
 ```
 
 ## Defense Demo Flow
 
-1. Open the app and tap the splash screen.
-2. Choose a demo account.
-3. Show the Home screen in the safe state.
-4. Trigger the Smoke demo control.
-5. Open the critical Kitchen alert.
-6. Mark the alert as Checking.
-7. Add an action note or use the default action note.
-8. Resolve the alert.
-9. Review Activity and Reports to show the response history.
-10. Use Reset Demo from More when preparing for another walkthrough.
+1. Open the app and tap Get Started.
+2. Log in with a demo account or use a quick-fill demo account.
+3. Show Home in the safe state.
+4. Open More, then Simulation Tools as Safety Officer or Administrator.
+5. Trigger Smoke Detected.
+6. Open the critical Kitchen alert.
+7. Start Checking.
+8. Add an action note and mark Action Taken.
+9. Resolve the alert.
+10. Review Activity and Reports.
+11. Use Reset Demo Data from More as Administrator when preparing for another review.
 
-## Prototype Notes
+## Current Limitations
 
-- No real ESP32, Arduino, cloud database, push notification, or production authentication is connected yet.
-- Demo accounts are for presentation only.
-- Mock readings, alerts, devices, activity, risks, and checklist state are saved locally on the device.
-- Moderate npm audit findings currently come from the Expo dependency tree. Do not run `npm audit fix --force` for the MVP because it can break Expo SDK compatibility.
+- AirGuard does not use a real backend or real authentication system yet.
+- AirGuard does not connect to real IoT hardware yet.
+- Hardware readings are simulated for the MVP.
+- Future versions may add real authentication, database sync, push notifications, and ESP32 or Arduino sensor integration.
+- Do not run `npm audit fix --force`; Expo SDK compatibility is more important for the MVP.
