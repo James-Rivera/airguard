@@ -34,7 +34,7 @@ RLS policies use `auth.uid()` and `public.is_home_member(home_id)` to protect ho
 
 New real accounts must start clean. Template rooms, devices, readings, alerts, and event runs may be created only when the authenticated user explicitly completes setup or applies a controlled sensor event for an active home they can access. Normal homeowner accounts should not receive global seed data.
 
-The web sensor console must run as an authenticated, RLS-protected client. Phase 1 access allows authenticated users to apply sensor events only against the active home returned through `home_members` membership. Scenario services still use the normal anon client, so Supabase RLS prevents users from mutating homes they do not belong to. The console must not expose a Supabase service role key in browser or mobile code.
+The web sensor console must run as an authenticated, RLS-protected client. Authenticated users can apply sensor events only against homes returned through `home_members` membership, with optional room/device targets resolved by the shared scenario service. Scenario services still use the normal anon client, so Supabase RLS prevents users from mutating homes they do not belong to. The console must not expose a Supabase service role key in browser or mobile code.
 
 ## Service Role Key
 

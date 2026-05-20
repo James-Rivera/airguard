@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Reading, SafetyStatus } from "@/domain/models";
 import { getActiveAlerts, getDevicesByRoomId, getLatestReadingForDevice, getReadingsByRoomId, getRoomById } from "@/domain/selectors";
+import { useHomeDataRefresh } from "@/hooks/useHomeDataRefresh";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { colors, fonts, layout, radius, spacing, statusColors } from "@/theme/index";
@@ -25,6 +26,7 @@ const readingTiles: Array<{ type: Reading["type"]; label: string; icon: AppIconN
 export default function RoomDetailRoute() {
   const { roomId } = useLocalSearchParams<{ roomId: string }>();
   const { state } = useAirGuard();
+  const refreshControl = useHomeDataRefresh();
   const { width } = useWindowDimensions();
   const room = getRoomById(state, roomId);
   const readings = room ? getReadingsByRoomId(state, room.id) : [];
@@ -37,14 +39,14 @@ export default function RoomDetailRoute() {
 
   if (!room) {
     return (
-      <AppScreen title="Room" subtitle="Room not found" onBack={() => router.back()} noBottomPadding>
+      <AppScreen title="Room" subtitle="Room not found" onBack={() => router.back()} noBottomPadding refreshControl={refreshControl}>
         <EmptyState title="Room not found" message="Go back and choose another monitored room." iconName="rooms" />
       </AppScreen>
     );
   }
 
   return (
-    <AppScreen title={room.name} subtitle="Room overview" onBack={() => router.back()} noBottomPadding>
+    <AppScreen title={room.name} subtitle="Room overview" onBack={() => router.back()} noBottomPadding refreshControl={refreshControl}>
       <RoomSummary roomStatus={room.status} deviceCount={devices.length} readingCount={readings.length} />
 
       {activeAlert ? (

@@ -24,6 +24,32 @@ export type DemoScenarioMeta = {
   preview: ScenarioPreviewReading[];
 };
 
+export type ScenarioTargetInput = {
+  roomId?: string;
+  deviceId?: string;
+};
+
+export type ScenarioRecordsAffected = {
+  rooms: number;
+  devices: number;
+  readings: number;
+  alerts: number;
+  resolvedAlerts: number;
+  activityLogs: number;
+};
+
+export type ScenarioRunResult = {
+  scenarioType: DemoScenarioType;
+  title: string;
+  homeId: string;
+  roomId?: string;
+  roomName?: string;
+  deviceId?: string;
+  deviceName?: string;
+  appliedAt: string;
+  recordsAffected: ScenarioRecordsAffected;
+};
+
 export const demoScenarios: DemoScenarioMeta[] = [
   {
     type: "normal-reading",

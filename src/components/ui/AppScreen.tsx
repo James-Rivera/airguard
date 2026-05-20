@@ -1,5 +1,5 @@
 import React from "react";
-import { KeyboardAvoidingView, ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
+import { KeyboardAvoidingView, ScrollView, StyleSheet, View, type RefreshControlProps, type ViewStyle } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "./AppText";
 import { IconButton } from "./IconButton";
@@ -13,6 +13,7 @@ export function AppScreen({
   noBottomPadding = false,
   contentStyle,
   headerAction,
+  refreshControl,
 }: {
   title?: string;
   subtitle?: string;
@@ -21,6 +22,7 @@ export function AppScreen({
   noBottomPadding?: boolean;
   contentStyle?: ViewStyle;
   headerAction?: React.ReactNode;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 }) {
   const insets = useSafeAreaInsets();
   const bottomPadding = (noBottomPadding ? spacing.xxl : layout.bottomNavPadding) + insets.bottom;
@@ -33,6 +35,7 @@ export function AppScreen({
           contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }, contentStyle]}
           contentInsetAdjustmentBehavior="automatic"
           keyboardShouldPersistTaps="handled"
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
         >
           {title ? (

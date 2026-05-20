@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { AirGuardData, DeviceType, Home, Room, User } from "@/domain/models";
-import type { DemoScenarioType } from "@/domain/scenarios";
+import type { DemoScenarioType, ScenarioRunResult, ScenarioTargetInput } from "@/domain/scenarios";
 import { demoDevices, demoRooms } from "@/domain/seed";
 import * as activityService from "@/services/activity-service";
 import * as alertService from "@/services/alert-service";
@@ -21,6 +21,7 @@ type StoreActions = {
   signOut: () => Promise<void>;
   logout: () => Promise<void>;
   loadHomeData: () => Promise<void>;
+  selectHome: (homeId: string) => Promise<void>;
   createHome: (name: string, address?: string) => Promise<void>;
   prepareSensorProfile: (type: DeviceType) => void;
   prepareSensorRoom: (room: { id?: string; name: string; icon?: Room["icon"] }) => void;
@@ -32,7 +33,7 @@ type StoreActions = {
   finishDevicePairing: () => Promise<void>;
   addDevice: (name: string, type?: DeviceType, roomId?: string) => Promise<void>;
   toggleDeviceStatus: (deviceId: string) => Promise<void>;
-  runDemoScenario: (type: DemoScenarioType) => Promise<void>;
+  runDemoScenario: (type: DemoScenarioType, target?: ScenarioTargetInput) => Promise<ScenarioRunResult>;
   simulateNormalReadings: () => Promise<void>;
   simulateWarningReadings: () => Promise<void>;
   simulateCriticalReadings: () => Promise<void>;
@@ -80,7 +81,8 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       const profile = (await profileService.getCurrentProfile()) ?? (await profileService.createProfileForUser());
-      const activeHome = await homeService.getActiveHomeWithMembership();
+      const homes = await homeService.getHomesForCurrentUser();
+      const activeHome = homes[0] ?? null;
       const nextBase = {
         ...blankState(),
         currentUser: profile,
@@ -91,16 +93,17 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
           isDemo: isDemoEmail(session.user.email ?? profile.email),
         },
         onboardingComplete: profile.onboardingComplete,
+        homes,
         home: activeHome,
       };
       setState(nextBase);
       if (activeHome) {
-        await loadHomeDataFor(activeHome, profile, profile.onboardingComplete);
+        await loadHomeDataFor(activeHome, profile, profile.onboardingComplete, homes);
       }
     }).finally(() => setIsLoading(false));
   }
 
-  async function loadHomeDataFor(home: Home, profile = state.currentUser, onboardingComplete = state.onboardingComplete) {
+  async function loadHomeDataFor(home: Home, profile = state.currentUser, onboardingComplete = state.onboardingComplete, homes = state.homes) {
     await deviceService.removeExactDuplicateDevices(home.id);
     const [rooms, devices, readings, alerts, activityLogs] = await Promise.all([
       roomService.getRooms(home.id),
@@ -114,6 +117,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
       currentUser: profile,
       onboardingComplete,
       onboarding: { homeCreated: true, roomsAdded: rooms.length > 0, firstDeviceAdded: devices.length > 0 },
+      homes,
       home,
       rooms,
       devices,
@@ -125,21 +129,32 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
 
   async function loadHomeData() {
     await run(async () => {
-      const activeHome = await homeService.getActiveHomeWithMembership();
+      const homes = await homeService.getHomesForCurrentUser();
+      const activeHome = state.home ? homes.find((home) => home.id === state.home?.id) ?? homes[0] : homes[0];
       if (!activeHome) {
-        setState((current) => ({ ...current, home: null, rooms: [], devices: [], readings: [], alerts: [], activityLogs: [] }));
+        setState((current) => ({ ...current, homes, home: null, rooms: [], devices: [], readings: [], alerts: [], activityLogs: [] }));
         return;
       }
-      await loadHomeDataFor(activeHome);
+      await loadHomeDataFor(activeHome, state.currentUser, state.onboardingComplete, homes);
     });
   }
 
-  async function runDemoScenario(type: DemoScenarioType) {
+  async function selectHome(homeId: string) {
     await run(async () => {
+      const homes = state.homes.length > 0 ? state.homes : await homeService.getHomesForCurrentUser();
+      const home = homes.find((item) => item.id === homeId);
+      if (!home) throw new Error("Selected home is not available for this account.");
+      await loadHomeDataFor(home, state.currentUser, state.onboardingComplete, homes);
+    });
+  }
+
+  async function runDemoScenario(type: DemoScenarioType, target?: ScenarioTargetInput) {
+    return run(async () => {
       if (!state.currentUser) throw new Error("Sign in before opening sensor controls.");
       if (!state.home) throw new Error("Create a home before applying sensor events.");
-      await scenarioService.runDemoScenario(state.home.id, type);
+      const result = await scenarioService.runDemoScenario(state.home.id, type, target);
       await loadHomeDataFor(state.home);
+      return result;
     });
   }
 
@@ -202,11 +217,13 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
         });
       },
       loadHomeData,
+      selectHome,
       async createHome(name, address) {
         await run(async () => {
           const home = await homeService.createHome(name.trim() || "My Home", address?.trim());
           await activityService.createActivityLog(home.id, "home", "Home created", `${home.name} is ready for monitoring.`);
-          await loadHomeDataFor(home, state.currentUser, state.onboardingComplete);
+          const homes = await homeService.getHomesForCurrentUser();
+          await loadHomeDataFor(home, state.currentUser, state.onboardingComplete, homes);
         });
       },
       prepareSensorProfile(type) {
@@ -417,6 +434,7 @@ function blankState(): AirGuardData {
     session: null,
     onboardingComplete: false,
     onboarding: { homeCreated: false, roomsAdded: false, firstDeviceAdded: false },
+    homes: [],
     home: null,
     rooms: [],
     devices: [],

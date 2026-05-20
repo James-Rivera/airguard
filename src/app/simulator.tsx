@@ -1,20 +1,35 @@
-import React, { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View, type ViewStyle } from "react-native";
+import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
 import { AppText } from "@/components/ui/AppText";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import type { ActivityLog, Alert, Device, Reading, Room, SafetyStatus } from "@/domain/models";
-import { demoScenarios, getDemoScenarioMeta, type DemoScenarioMeta, type DemoScenarioType } from "@/domain/scenarios";
+import type { ActivityLog, Alert, Device, Home, Reading, Room, SafetyStatus } from "@/domain/models";
+import {
+  demoScenarios,
+  getDemoScenarioMeta,
+  type DemoScenarioMeta,
+  type DemoScenarioType,
+  type ScenarioRecordsAffected,
+  type ScenarioRunResult,
+} from "@/domain/scenarios";
 import { getDeviceTypeLabel, getHomeSafetyStatus, getRoomSafetyStatus } from "@/domain/selectors";
-import { formatAlertTime, formatReadingValue, formatRelativeMinutes } from "@/lib/formatters";
+import { formatAlertTime, formatReadingValue, formatRelativeMinutes, initials } from "@/lib/formatters";
+import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { useSession } from "@/state/session";
 import { colors, fonts, radius, shadows, spacing, statusColors, statusSurfaces } from "@/theme/index";
 
-type Notice = { kind: "success" | "error"; text: string } | null;
+type Notice = {
+  kind: "success" | "error";
+  title: string;
+  details?: Array<{ label: string; value: string }>;
+} | null;
+
+type EventProfile = "live" | "warning" | "critical";
 
 const actionLabels: Record<DemoScenarioType, string> = {
   "normal-reading": "Normalize Readings",
@@ -25,26 +40,73 @@ const actionLabels: Record<DemoScenarioType, string> = {
   "reset-to-normal": "Normalize Readings",
 };
 
+const eventProfiles: Array<{ value: EventProfile; label: string; scenario: DemoScenarioType }> = [
+  { value: "live", label: "Live", scenario: "normal-reading" },
+  { value: "warning", label: "Warning", scenario: "high-co2" },
+  { value: "critical", label: "Critical", scenario: "smoke-detected" },
+];
+
 export default function SensorSimulatorRoute() {
   const { user, session, isLoading, signIn, signOut } = useSession();
   const { state, actions, error } = useAirGuard();
+  const { width } = useWindowDimensions();
   const [selected, setSelected] = useState<DemoScenarioType>("normal-reading");
+  const [eventProfile, setEventProfile] = useState<EventProfile>("live");
+  const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>();
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>();
   const [runningType, setRunningType] = useState<DemoScenarioType | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [switchingHomeId, setSwitchingHomeId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [accessError, setAccessError] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   const selectedMeta = getDemoScenarioMeta(selected);
+  const homes = state.homes.length > 0 ? state.homes : state.home ? [state.home] : [];
   const activeAlerts = useMemo(() => state.alerts.filter((alert) => alert.status !== "resolved"), [state.alerts]);
   const onlineDevices = useMemo(() => state.devices.filter((device) => device.status === "online"), [state.devices]);
+  const selectedRoom = useMemo(() => state.rooms.find((room) => room.id === selectedRoomId) ?? state.rooms[0], [selectedRoomId, state.rooms]);
+  const roomDevices = useMemo(
+    () => (selectedRoom ? state.devices.filter((device) => device.roomId === selectedRoom.id) : state.devices),
+    [selectedRoom, state.devices],
+  );
+  const selectedDevice = useMemo(
+    () => roomDevices.find((device) => device.id === selectedDeviceId) ?? roomDevices[0],
+    [roomDevices, selectedDeviceId],
+  );
+  const targetReadings = useMemo(
+    () => (selectedRoom ? state.readings.filter((reading) => reading.roomId === selectedRoom.id) : state.readings),
+    [selectedRoom, state.readings],
+  );
   const recentEvents = useMemo(() => buildRecentEvents(state.activityLogs, state.rooms, state.alerts), [state.activityLogs, state.rooms, state.alerts]);
   const activeConditions = useMemo(() => buildActiveConditions(state.rooms, state.devices, activeAlerts), [activeAlerts, state.devices, state.rooms]);
-  const displayTarget = useMemo(() => getDisplayTarget(state.rooms, state.devices, selected), [selected, state.devices, state.rooms]);
   const latestReading = state.readings[0];
   const lastEventTime = state.activityLogs[0]?.createdAt ? formatAlertTime(state.activityLogs[0].createdAt) : "No events yet";
   const canOpenConsole = Boolean(user && state.home);
+  const isWide = width >= 980;
+
+  useEffect(() => {
+    if (state.rooms.length === 0) {
+      if (selectedRoomId) setSelectedRoomId(undefined);
+      return;
+    }
+    if (!selectedRoomId || !state.rooms.some((room) => room.id === selectedRoomId)) {
+      setSelectedRoomId(state.rooms[0].id);
+    }
+  }, [selectedRoomId, state.rooms]);
+
+  useEffect(() => {
+    if (roomDevices.length === 0) {
+      if (selectedDeviceId) setSelectedDeviceId(undefined);
+      return;
+    }
+    if (!selectedDeviceId || !roomDevices.some((device) => device.id === selectedDeviceId)) {
+      setSelectedDeviceId(roomDevices[0].id);
+    }
+  }, [roomDevices, selectedDeviceId]);
 
   async function runEvent(type: DemoScenarioType) {
     if (runningType) return;
@@ -53,13 +115,52 @@ export default function SensorSimulatorRoute() {
     setNotice(null);
     setRunningType(type);
     try {
-      await actions.runDemoScenario(type);
-      setNotice({ kind: "success", text: `${meta.title} applied. Readings, alerts, devices, rooms, and activity are refreshing from AirGuard data.` });
+      const result = await actions.runDemoScenario(type, {
+        roomId: selectedRoom?.id,
+        deviceId: selectedDevice?.id,
+      });
+      const appliedAt = new Date(result.appliedAt);
+      setLastSync(appliedAt);
+      setNotice(buildSuccessNotice(result, state.home, selectedRoom, selectedDevice, meta));
     } catch (err) {
-      setNotice({ kind: "error", text: err instanceof Error ? err.message : "The event could not be applied." });
+      setNotice({ kind: "error", title: err instanceof Error ? err.message : "The event could not be applied." });
     } finally {
       setRunningType(null);
     }
+  }
+
+  async function refreshConsole() {
+    if (isRefreshing) return;
+    setNotice(null);
+    setIsRefreshing(true);
+    try {
+      await actions.loadHomeData();
+      setLastSync(new Date());
+    } catch (err) {
+      setNotice({ kind: "error", title: err instanceof Error ? err.message : "The console could not refresh home data." });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
+  async function switchHome(homeId: string) {
+    if (homeId === state.home?.id || switchingHomeId) return;
+    setNotice(null);
+    setSwitchingHomeId(homeId);
+    try {
+      await actions.selectHome(homeId);
+      setLastSync(new Date());
+    } catch (err) {
+      setNotice({ kind: "error", title: err instanceof Error ? err.message : "The selected home could not be loaded." });
+    } finally {
+      setSwitchingHomeId(null);
+    }
+  }
+
+  function chooseProfile(profile: EventProfile) {
+    setEventProfile(profile);
+    const nextScenario = eventProfiles.find((item) => item.value === profile)?.scenario;
+    if (nextScenario) setSelected(nextScenario);
   }
 
   async function submitAccess() {
@@ -77,172 +178,340 @@ export default function SensorSimulatorRoute() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerBar}>
-          <View style={styles.brandBlock}>
-            <View style={styles.logoMark}>
-              <AppIcon name="shield" size={24} color={colors.brand} secondaryColor={colors.accent} />
-            </View>
-            <View style={styles.brandCopy}>
-              <AppText style={styles.brandName}>AirGuard</AppText>
-              <AppText style={styles.headerMeta}>AIRGUARD OPERATIONS</AppText>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <View style={styles.operationBadge}>
-              <View style={styles.liveDot} />
-              <AppText style={styles.operationBadgeText}>Operations</AppText>
-            </View>
-            {user ? (
-              <View style={styles.accountCluster}>
-                <AppText style={styles.accountName}>{user.name}</AppText>
-                <AppText style={styles.accountDetail}>{state.home?.name ?? user.email}</AppText>
-              </View>
-            ) : null}
-            {user ? (
-              <Pressable onPress={logout} style={styles.logoutAction} accessibilityRole="button">
-                <AppIcon name="logout" size={18} color={colors.textSecondary} secondaryColor={colors.brand} />
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-
-        <View style={styles.pageIntro}>
-          <View style={styles.pageIntroCopy}>
-            <AppText style={styles.eyebrow}>AIRGUARD OPERATIONS</AppText>
-            <AppText style={styles.title}>AirGuard Sensor Console</AppText>
-            <AppText style={styles.subtitle}>Monitor sensor conditions and apply controlled sensor events across your home.</AppText>
-          </View>
-          {state.home ? (
-            <View style={styles.homePill}>
-              <AppIcon name="home" size={18} color={colors.brand} secondaryColor={colors.accent} />
-              <AppText style={styles.homePillText}>{state.home.name}</AppText>
-            </View>
-          ) : null}
-        </View>
-
-        {!user ? (
-          <AccessPanel
-            email={email}
-            password={password}
-            isLoading={isLoading || isSigningIn}
-            error={accessError}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onSubmit={submitAccess}
+      <View style={styles.shell}>
+        {isWide ? <Sidebar user={user} home={state.home} onLogout={logout} /> : null}
+        <ScrollView style={styles.page} contentContainerStyle={styles.pageContent} showsVerticalScrollIndicator={false}>
+          {!isWide ? <MobileBrand user={user} home={state.home} onLogout={logout} /> : null}
+          <ConsoleHeader
+            home={state.home}
+            activeAlerts={activeAlerts.length}
+            lastSync={lastSync}
+            isRefreshing={isRefreshing}
+            onRefresh={refreshConsole}
           />
-        ) : !canOpenConsole ? (
-          <EmptyState title="Console unavailable" message="Your account does not have access to sensor controls for this home." />
-        ) : (
-          <>
-            {notice ? <NoticeBanner notice={notice} /> : null}
-            {error && !notice ? <NoticeBanner notice={{ kind: "error", text: error }} /> : null}
 
-            <View style={styles.sectionHeader}>
-              <AppText style={styles.sectionTitle}>System Overview</AppText>
-              <StatusBadge status={getHomeSafetyStatus(state)} />
-            </View>
-            <View style={styles.metricsGrid}>
-              <MetricCard label="Active home" value={state.home?.name ?? "No home"} detail={state.home?.address ?? "Primary monitored home"} icon="home" />
-              <MetricCard label="Rooms monitored" value={String(state.rooms.length)} detail={`${activeConditions.rooms} need attention`} icon="rooms" />
-              <MetricCard label="Devices online" value={`${onlineDevices.length}/${state.devices.length}`} detail={`${state.devices.length - onlineDevices.length} offline`} icon="device" />
-              <MetricCard label="Active alerts" value={String(activeAlerts.length)} detail={`${activeAlerts.filter((alert) => alert.severity === "critical").length} critical`} icon="alert" tone={activeAlerts.length > 0 ? "warning" : "good"} />
-              <MetricCard label="Last event time" value={lastEventTime} detail={latestReading ? `Latest reading ${formatAlertTime(latestReading.createdAt)}` : "Awaiting readings"} icon="note" />
-            </View>
+          {!user ? (
+            <AccessPanel
+              email={email}
+              password={password}
+              isLoading={isLoading || isSigningIn}
+              error={accessError}
+              onEmailChange={setEmail}
+              onPasswordChange={setPassword}
+              onSubmit={submitAccess}
+            />
+          ) : !canOpenConsole ? (
+            <EmptyState title="Console unavailable" message="Create or join a home before applying controlled sensor events." iconName="home" />
+          ) : (
+            <>
+              {notice ? <NoticeBanner notice={notice} /> : null}
+              {error && !notice ? <NoticeBanner notice={{ kind: "error", title: error }} /> : null}
 
-            <View style={styles.mainGrid}>
-              <View style={styles.mainColumn}>
-                <View style={styles.sectionHeader}>
-                  <View>
-                    <AppText style={styles.sectionTitle}>Sensor Controls</AppText>
-                    <AppText style={styles.sectionCaption}>Apply condition profiles through the shared AirGuard event flow.</AppText>
-                  </View>
-                  <StatusBadge status={selectedMeta.severity === "good" ? "good" : selectedMeta.severity === "offline" ? "offline" : selectedMeta.severity} />
+              <FilterRow
+                homes={homes}
+                activeHome={state.home}
+                selectedRoom={selectedRoom}
+                rooms={state.rooms}
+                selectedDevice={selectedDevice}
+                devices={roomDevices}
+                eventProfile={eventProfile}
+                switchingHomeId={switchingHomeId}
+                onHomeSelect={switchHome}
+                onRoomSelect={setSelectedRoomId}
+                onDeviceSelect={setSelectedDeviceId}
+                onProfileSelect={chooseProfile}
+              />
+
+              <View style={styles.topDashboardGrid}>
+                <View style={styles.metricsGrid}>
+                  <MetricCard label="Home Status" value={homeStatusLabel(getHomeSafetyStatus(state))} detail={state.home?.name ?? "No active home"} icon="shield" tone={metricTone(getHomeSafetyStatus(state))} />
+                  <MetricCard label="Rooms Monitored" value={String(state.rooms.length)} detail={`${activeConditions.roomCount} need attention`} icon="rooms" />
+                  <MetricCard label="Devices Online" value={`${onlineDevices.length}/${state.devices.length}`} detail={`${state.devices.length - onlineDevices.length} offline`} icon="device" tone={state.devices.length === onlineDevices.length ? "good" : "warning"} />
+                  <MetricCard label="Active Alerts" value={String(activeAlerts.length)} detail={`${activeAlerts.filter((alert) => alert.severity === "critical").length} critical`} icon="alert" tone={activeAlerts.length > 0 ? "warning" : "good"} />
+                  <MetricCard label="Last Sync" value={lastSync ? formatAlertTime(lastSync.toISOString()) : lastEventTime} detail={latestReading ? `Latest reading ${formatAlertTime(latestReading.createdAt)}` : "Awaiting readings"} icon="note" />
                 </View>
-                <View style={styles.eventGrid}>
-                  {demoScenarios.map((scenario) => (
-                    <EventCard
-                      key={scenario.type}
-                      scenario={scenario}
-                      targetRoom={displayTarget.room}
-                      targetDevice={displayTarget.device}
-                      selected={selected === scenario.type}
-                      isRunning={runningType === scenario.type}
-                      disabled={Boolean(runningType)}
-                      onSelect={() => setSelected(scenario.type)}
-                      onApply={() => runEvent(scenario.type)}
-                    />
-                  ))}
-                </View>
-
-                <View style={styles.splitSection}>
-                  <Panel title="Recent Sensor Events" style={styles.recentPanel}>
-                    {recentEvents.length === 0 ? (
-                      <AppText variant="caption">Sensor events will appear here after activity is recorded.</AppText>
-                    ) : (
-                      recentEvents.map((item) => <RecentEventRow key={item.id} item={item} />)
-                    )}
-                  </Panel>
-
-                  <Panel title="Active Conditions" style={styles.conditionsPanel}>
-                    {activeConditions.items.length === 0 ? (
-                      <View style={styles.clearState}>
-                        <AppIcon name="check" size={24} color={colors.success} secondaryColor={colors.success} />
-                        <View style={styles.clearStateCopy}>
-                          <AppText style={styles.clearStateTitle}>No active conditions</AppText>
-                          <AppText variant="caption">Rooms and connected devices are reporting normal status.</AppText>
-                        </View>
-                      </View>
-                    ) : (
-                      activeConditions.items.map((item) => <ConditionRow key={item.id} item={item} />)
-                    )}
+                <View style={styles.topChart}>
+                  <Panel title="Air Quality Activity">
+                    <ActivityChart readings={targetReadings} status={selectedRoom ? getRoomSafetyStatus(state, selectedRoom.id) : getHomeSafetyStatus(state)} />
                   </Panel>
                 </View>
               </View>
 
-              <View style={styles.sideColumn}>
-                <Panel title="Reading Preview">
-                  <View style={styles.previewHeader}>
-                    <View style={styles.previewIcon}>
-                      <AppIcon name={scenarioIcon(selectedMeta.type)} size={22} color={colors.brand} secondaryColor={colors.accent} />
+              <View style={styles.dashboardGrid}>
+                <View style={styles.controlsColumn}>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <AppText style={styles.sectionTitle}>Sensor Controls</AppText>
+                      <AppText style={styles.sectionCaption}>Apply controlled sensor events to the selected room and device.</AppText>
                     </View>
-                    <View style={styles.previewTitleBlock}>
-                      <AppText style={styles.previewTitle}>{selectedMeta.title}</AppText>
-                      <AppText variant="caption">Condition profile</AppText>
-                    </View>
-                    <StatusBadge status={selectedMeta.severity === "good" ? "good" : selectedMeta.severity === "offline" ? "offline" : selectedMeta.severity} />
+                    <StatusBadge status={scenarioStatus(selectedMeta)} />
                   </View>
-                  <View style={styles.previewList}>
-                    {selectedMeta.preview.map((item) => (
-                      <View key={`${item.type}-${item.label}`} style={styles.previewRow}>
-                        <AppText style={styles.previewLabel}>{item.label}</AppText>
-                        <AppText style={styles.previewValue}>{formatReadingValue(item.value, item.unit)}</AppText>
-                        <AppText style={styles.previewStatus}>{item.statusLabel}</AppText>
-                      </View>
+                  <View style={styles.eventGrid}>
+                    {demoScenarios.map((scenario) => (
+                      <EventCard
+                        key={scenario.type}
+                        scenario={scenario}
+                        targetRoom={selectedRoom}
+                        targetDevice={selectedDevice}
+                        selected={selected === scenario.type}
+                        isRunning={runningType === scenario.type}
+                        disabled={Boolean(runningType)}
+                        onSelect={() => setSelected(scenario.type)}
+                        onApply={() => runEvent(scenario.type)}
+                      />
                     ))}
                   </View>
-                </Panel>
+                  <View style={styles.controlsFooter}>
+                    <AppText style={styles.controlsFooterText}>View All Controls</AppText>
+                    <AppIcon name="chevron-right" size={15} color={colors.brand} secondaryColor={colors.brand} />
+                  </View>
 
-                <Panel title="Current Target">
-                  <ContextRow label="Home" value={state.home?.name ?? "No home"} icon="home" />
-                  <ContextRow label="Room" value={displayTarget.room?.name ?? "Add a room"} icon={displayTarget.room?.icon ?? "rooms"} status={displayTarget.room ? getRoomSafetyStatus(state, displayTarget.room.id) : undefined} />
-                  <ContextRow label="Device" value={displayTarget.device?.name ?? "Add a device"} icon="sensor" status={displayTarget.device?.status === "offline" ? "offline" : "online"} />
-                  <ContextRow label="Latest status" value={latestReading ? `${latestReading.label} ${formatReadingValue(latestReading.value, latestReading.unit)}` : "Awaiting readings"} icon="air" status={latestReading?.status} />
-                </Panel>
+                  <View style={styles.secondaryGrid}>
+                    <Panel title="Recent Sensor Events" style={styles.recentPanel}>
+                      {recentEvents.length === 0 ? (
+                        <AppText variant="caption">Sensor events will appear here after activity is recorded.</AppText>
+                      ) : (
+                        recentEvents.map((item) => <RecentEventRow key={item.id} item={item} />)
+                      )}
+                    </Panel>
 
-                <Panel title="Connected Devices">
-                  {state.devices.length === 0 ? (
-                    <AppText variant="caption">Connected devices appear after setup.</AppText>
-                  ) : (
-                    state.devices.slice(0, 6).map((device) => <DeviceRow key={device.id} device={device} room={state.rooms.find((item) => item.id === device.roomId)} />)
-                  )}
-                </Panel>
+                    <Panel title="Active Conditions" style={styles.conditionsPanel}>
+                      {activeConditions.items.length === 0 ? (
+                        <View style={styles.clearState}>
+                          <AppIcon name="check" size={23} color={colors.success} secondaryColor={colors.success} />
+                          <View style={styles.clearStateCopy}>
+                            <AppText style={styles.clearStateTitle}>No active conditions</AppText>
+                            <AppText variant="caption">Rooms and connected devices are reporting normal status.</AppText>
+                          </View>
+                        </View>
+                      ) : (
+                        activeConditions.items.map((item) => <ConditionRow key={item.id} item={item} />)
+                      )}
+                    </Panel>
+                  </View>
+                </View>
+
+                <View style={styles.rightRail}>
+                  <Panel title="Reading Preview">
+                    <ReadingPreview scenario={selectedMeta} />
+                  </Panel>
+
+                  <Panel title="Current Target">
+                    <ContextRow label="Home" value={state.home?.name ?? "No home"} icon="home" />
+                    <ContextRow label="Room" value={selectedRoom?.name ?? "Add a room"} icon={selectedRoom?.icon ?? "rooms"} status={selectedRoom ? getRoomSafetyStatus(state, selectedRoom.id) : undefined} />
+                    <ContextRow label="Device" value={selectedDevice?.name ?? "Add a device"} icon="sensor" status={selectedDevice?.status === "offline" ? "offline" : selectedDevice ? "online" : undefined} />
+                    <ContextRow label="Latest Reading" value={latestReading ? `${latestReading.label} ${formatReadingValue(latestReading.value, latestReading.unit)}` : "Awaiting readings"} icon="air" status={latestReading?.status} />
+                  </Panel>
+
+                  <Panel title="Connected Devices">
+                    {state.devices.length === 0 ? (
+                      <AppText variant="caption">Connected devices appear after setup.</AppText>
+                    ) : (
+                      state.devices.slice(0, 7).map((device) => <DeviceRow key={device.id} device={device} room={state.rooms.find((item) => item.id === device.roomId)} />)
+                    )}
+                  </Panel>
+                </View>
               </View>
-            </View>
-          </>
-        )}
-      </ScrollView>
+            </>
+          )}
+        </ScrollView>
+      </View>
     </SafeAreaView>
+  );
+}
+
+function Sidebar({ user, home, onLogout }: { user: { name: string; email: string } | null; home: Home | null; onLogout: () => void }) {
+  return (
+    <View style={styles.sidebar}>
+      <View style={styles.sidebarBrand}>
+        <View style={styles.sidebarLogo}>
+          <AppIcon name="shield" size={26} color={colors.white} secondaryColor={colors.white} />
+        </View>
+        <View>
+          <AppText style={styles.sidebarName}>AirGuard</AppText>
+          <AppText style={styles.sidebarMeta}>Operations</AppText>
+        </View>
+      </View>
+      <View style={styles.navList}>
+        <NavItem label="Dashboard" icon="home" active onPress={() => router.push(routes.simulator)} />
+        <NavItem label="Rooms" icon="rooms" onPress={() => router.push(routes.rooms)} />
+        <NavItem label="Devices" icon="device" onPress={() => router.push(routes.devices)} />
+        <NavItem label="Alerts" icon="alert" onPress={() => router.push(routes.alerts)} />
+        <NavItem label="Reports" icon="note" />
+        <NavItem label="Settings" icon="settings" onPress={() => router.push(routes.homeSettings)} />
+      </View>
+      <View style={styles.sidebarFooter}>
+        {user ? (
+          <>
+            <View style={styles.accountAvatar}>
+              <AppText style={styles.accountAvatarText}>{initials(user.name)}</AppText>
+            </View>
+            <View style={styles.accountCopy}>
+              <AppText style={styles.accountName} numberOfLines={1}>{user.name}</AppText>
+              <AppText style={styles.accountDetail} numberOfLines={1}>{home?.name ?? user.email}</AppText>
+            </View>
+            <Pressable onPress={onLogout} style={styles.sidebarLogout} accessibilityRole="button" accessibilityLabel="Sign out">
+              <AppIcon name="logout" size={18} color={colors.textSecondary} secondaryColor={colors.brand} />
+            </Pressable>
+          </>
+        ) : (
+          <AppText style={styles.sidebarFooterText}>Sign in to access your home console.</AppText>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function MobileBrand({ user, home, onLogout }: { user: { name: string; email: string } | null; home: Home | null; onLogout: () => void }) {
+  return (
+    <View style={styles.mobileBrand}>
+      <View style={styles.sidebarBrand}>
+        <View style={styles.sidebarLogo}>
+          <AppIcon name="shield" size={22} color={colors.white} secondaryColor={colors.white} />
+        </View>
+        <View>
+          <AppText style={styles.sidebarName}>AirGuard</AppText>
+          <AppText style={styles.sidebarMeta}>{home?.name ?? "Operations"}</AppText>
+        </View>
+      </View>
+      {user ? (
+        <Pressable onPress={onLogout} style={styles.mobileLogout} accessibilityRole="button" accessibilityLabel="Sign out">
+          <AppIcon name="logout" size={18} color={colors.textSecondary} secondaryColor={colors.brand} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function NavItem({ label, icon, active = false, onPress }: { label: string; icon: AppIconName; active?: boolean; onPress?: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.navItem, active && styles.navItemActive]} accessibilityRole="button">
+      <AppIcon name={icon} size={19} color={active ? colors.brand : colors.textSecondary} secondaryColor={active ? colors.accent : colors.textMuted} />
+      <AppText style={[styles.navLabel, active && styles.navLabelActive]}>{label}</AppText>
+    </Pressable>
+  );
+}
+
+function ConsoleHeader({
+  home,
+  activeAlerts,
+  lastSync,
+  isRefreshing,
+  onRefresh,
+}: {
+  home: Home | null;
+  activeAlerts: number;
+  lastSync: Date | null;
+  isRefreshing: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerCopy}>
+        <View style={styles.headerTopLine}>
+          <AppText style={styles.headerKicker}>AirGuard Operations</AppText>
+        </View>
+        <AppText style={styles.headerTitle}>Sensor Console</AppText>
+        <AppText style={styles.headerSubtitle}>Monitor air quality in your home and apply controlled actions to keep your space healthy.</AppText>
+      </View>
+      <View style={styles.headerTools}>
+        <View style={styles.statusBadge}>
+          <View style={styles.liveDot} />
+          <AppText style={styles.statusBadgeText}>Operational</AppText>
+          <AppIcon name="chevron-right" size={13} color={colors.textSecondary} secondaryColor={colors.textSecondary} />
+        </View>
+        <View style={styles.notificationButton}>
+          <AppIcon name="alert" size={18} color={activeAlerts > 0 ? colors.warning : colors.textSecondary} secondaryColor={activeAlerts > 0 ? colors.warning : colors.textMuted} />
+          {activeAlerts > 0 ? <View style={styles.notificationDot} /> : null}
+        </View>
+        <View style={styles.dateBox}>
+          <AppText style={styles.dateLabel}>{home?.name ?? "No home selected"}</AppText>
+          <AppText style={styles.dateValue}>{lastSync ? `Synced ${formatAlertTime(lastSync.toISOString())}` : formatConsoleDate(new Date())}</AppText>
+        </View>
+        <AppButton label={isRefreshing ? "Refreshing" : "Refresh"} onPress={onRefresh} disabled={isRefreshing} variant="secondary" style={styles.refreshButton} />
+      </View>
+    </View>
+  );
+}
+
+function FilterRow({
+  homes,
+  activeHome,
+  selectedRoom,
+  rooms,
+  selectedDevice,
+  devices,
+  eventProfile,
+  switchingHomeId,
+  onHomeSelect,
+  onRoomSelect,
+  onDeviceSelect,
+  onProfileSelect,
+}: {
+  homes: Home[];
+  activeHome: Home | null;
+  selectedRoom?: Room;
+  rooms: Room[];
+  selectedDevice?: Device;
+  devices: Device[];
+  eventProfile: EventProfile;
+  switchingHomeId: string | null;
+  onHomeSelect: (homeId: string) => void;
+  onRoomSelect: (roomId: string) => void;
+  onDeviceSelect: (deviceId: string) => void;
+  onProfileSelect: (profile: EventProfile) => void;
+}) {
+  return (
+    <View style={styles.filterRow}>
+      {homes.length > 1 ? (
+        <SelectorGroup label="Home">
+          {homes.map((home) => (
+            <SelectorPill
+              key={home.id}
+              label={switchingHomeId === home.id ? "Loading" : home.name}
+              active={activeHome?.id === home.id}
+              onPress={() => onHomeSelect(home.id)}
+            />
+          ))}
+        </SelectorGroup>
+      ) : null}
+      <SelectorGroup label="Room">
+        {rooms.length === 0 ? <DisabledPill label="No rooms" /> : rooms.map((room) => <SelectorPill key={room.id} label={room.name} active={selectedRoom?.id === room.id} onPress={() => onRoomSelect(room.id)} />)}
+      </SelectorGroup>
+      <SelectorGroup label="Device">
+        {devices.length === 0 ? <DisabledPill label="No devices" /> : devices.map((device) => <SelectorPill key={device.id} label={device.name} active={selectedDevice?.id === device.id} onPress={() => onDeviceSelect(device.id)} />)}
+      </SelectorGroup>
+      <SelectorGroup label="Event profile">
+        {eventProfiles.map((profile) => (
+          <SelectorPill key={profile.value} label={profile.label} active={eventProfile === profile.value} onPress={() => onProfileSelect(profile.value)} />
+        ))}
+      </SelectorGroup>
+    </View>
+  );
+}
+
+function SelectorGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.selectorGroup}>
+      <AppText style={styles.selectorLabel}>{label}</AppText>
+      <View style={styles.selectorOptions}>{children}</View>
+    </View>
+  );
+}
+
+function SelectorPill({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.selectorPill, active && styles.selectorPillActive]} accessibilityRole="button" accessibilityState={{ selected: active }}>
+      <AppText style={[styles.selectorPillText, active && styles.selectorPillTextActive]} numberOfLines={1}>{label}</AppText>
+    </Pressable>
+  );
+}
+
+function DisabledPill({ label }: { label: string }) {
+  return (
+    <View style={[styles.selectorPill, styles.selectorPillDisabled]}>
+      <AppText style={styles.selectorPillText}>{label}</AppText>
+    </View>
   );
 }
 
@@ -275,7 +544,7 @@ function MetricCard({
   );
 }
 
-function Panel({ title, children, style }: { title: string; children: React.ReactNode; style?: object }) {
+function Panel({ title, children, style }: { title: string; children: React.ReactNode; style?: ViewStyle }) {
   return (
     <View style={[styles.panel, style]}>
       <View style={styles.panelHeader}>
@@ -305,7 +574,6 @@ function EventCard({
   onSelect: () => void;
   onApply: () => void;
 }) {
-  const status = scenario.severity === "good" ? "good" : scenario.severity === "offline" ? "offline" : scenario.severity;
   return (
     <View style={[styles.eventCard, selected && styles.eventCardSelected]}>
       <Pressable onPress={onSelect} style={styles.eventHitArea} accessibilityRole="button" accessibilityState={{ selected }}>
@@ -313,13 +581,13 @@ function EventCard({
           <View style={[styles.eventIcon, selected && styles.eventIconSelected]}>
             <AppIcon name={scenarioIcon(scenario.type)} size={21} color={selected ? colors.white : colors.brand} secondaryColor={selected ? colors.white : colors.accent} />
           </View>
-          <StatusBadge status={status} />
+          <StatusBadge status={scenarioStatus(scenario)} />
         </View>
         <View style={styles.eventCopy}>
           <AppText style={styles.eventTitle}>{scenario.title}</AppText>
           <AppText style={styles.eventSummary}>{scenario.summary}</AppText>
         </View>
-        <View style={styles.eventPreview}>
+        <View style={styles.eventTargetBox}>
           <AppText style={styles.eventTarget} numberOfLines={1}>{targetRoom?.name ?? "No room selected"}</AppText>
           <AppText style={styles.eventDevice} numberOfLines={1}>{targetDevice?.name ?? "No device selected"}</AppText>
         </View>
@@ -339,6 +607,55 @@ function EventCard({
         variant={scenario.severity === "critical" ? "danger" : "primary"}
         style={styles.eventButton}
       />
+    </View>
+  );
+}
+
+function ActivityChart({ readings, status }: { readings: Reading[]; status: SafetyStatus }) {
+  const points = buildActivityPoints(readings, status);
+  return (
+    <View style={styles.chartBox}>
+      <View style={styles.chartHeader}>
+        <View>
+          <AppText style={styles.chartValue}>{points[points.length - 1]?.value ?? 0}</AppText>
+          <AppText style={styles.chartCaption}>Air quality index</AppText>
+        </View>
+        <StatusBadge status={status} />
+      </View>
+      <View style={styles.chartBars}>
+        {points.map((point) => (
+          <View key={point.label} style={styles.chartPoint}>
+            <View style={styles.chartTrack}>
+              <View style={[styles.chartBar, { height: point.height, backgroundColor: point.color }]} />
+            </View>
+            <AppText style={styles.chartLabel}>{point.label}</AppText>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function ReadingPreview({ scenario }: { scenario: DemoScenarioMeta }) {
+  return (
+    <View style={styles.previewList}>
+      <View style={styles.previewHeader}>
+        <View style={styles.previewIcon}>
+          <AppIcon name={scenarioIcon(scenario.type)} size={22} color={colors.brand} secondaryColor={colors.accent} />
+        </View>
+        <View style={styles.previewTitleBlock}>
+          <AppText style={styles.previewTitle}>{scenario.title}</AppText>
+          <AppText variant="caption">Reading profile</AppText>
+        </View>
+        <StatusBadge status={scenarioStatus(scenario)} />
+      </View>
+      {scenario.preview.map((item) => (
+        <View key={`${item.type}-${item.label}`} style={styles.previewRow}>
+          <AppText style={styles.previewLabel}>{item.label}</AppText>
+          <AppText style={styles.previewValue}>{formatReadingValue(item.value, item.unit)}</AppText>
+          <AppText style={styles.previewStatus}>{item.statusLabel}</AppText>
+        </View>
+      ))}
     </View>
   );
 }
@@ -404,10 +721,23 @@ function DeviceRow({ device, room }: { device: Device; room?: Room }) {
 }
 
 function NoticeBanner({ notice }: { notice: NonNullable<Notice> }) {
+  const success = notice.kind === "success";
   return (
-    <View style={[styles.notice, notice.kind === "success" ? styles.noticeSuccess : styles.noticeError]}>
-      <AppIcon name={notice.kind === "success" ? "check" : "alert"} size={20} color={notice.kind === "success" ? colors.success : colors.critical} secondaryColor={notice.kind === "success" ? colors.success : colors.critical} />
-      <AppText style={[styles.noticeText, notice.kind === "success" ? styles.noticeTextSuccess : styles.noticeTextError]}>{notice.text}</AppText>
+    <View style={[styles.notice, success ? styles.noticeSuccess : styles.noticeError]}>
+      <AppIcon name={success ? "check" : "alert"} size={20} color={success ? colors.success : colors.critical} secondaryColor={success ? colors.success : colors.critical} />
+      <View style={styles.noticeCopy}>
+        <AppText style={[styles.noticeTitle, success ? styles.noticeTextSuccess : styles.noticeTextError]}>{notice.title}</AppText>
+        {notice.details ? (
+          <View style={styles.noticeDetails}>
+            {notice.details.map((item) => (
+              <View key={item.label} style={styles.noticeDetailItem}>
+                <AppText style={styles.noticeDetailLabel}>{item.label}</AppText>
+                <AppText style={styles.noticeDetailValue}>{item.value}</AppText>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -434,10 +764,10 @@ function AccessPanel({
       <View style={styles.accessCard}>
         <View style={styles.accessCopy}>
           <View style={styles.accessIcon}>
-            <AppIcon name="shield" size={32} color={colors.brand} secondaryColor={colors.accent} />
+            <AppIcon name="shield" size={34} color={colors.brand} secondaryColor={colors.accent} />
           </View>
-          <AppText style={styles.accessTitle}>Secure console access</AppText>
-          <AppText style={styles.accessSubtitle}>Sign in with your AirGuard account to manage controlled sensor events for homes you can access.</AppText>
+          <AppText style={styles.accessTitle}>Open Sensor Console</AppText>
+          <AppText style={styles.accessSubtitle}>Sign in with your AirGuard account to operate the homes available to you.</AppText>
         </View>
         <View style={styles.accessForm}>
           <View style={styles.inputGroup}>
@@ -445,13 +775,12 @@ function AccessPanel({
             <TextInput
               value={email}
               onChangeText={onEmailChange}
-              placeholder="you@example.com"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="email-address"
               autoCapitalize="none"
-              autoComplete="email"
+              keyboardType="email-address"
               textContentType="emailAddress"
               style={styles.input}
+              placeholder="you@example.com"
+              placeholderTextColor={colors.textMuted}
             />
           </View>
           <View style={styles.inputGroup}>
@@ -459,12 +788,11 @@ function AccessPanel({
             <TextInput
               value={password}
               onChangeText={onPasswordChange}
-              placeholder="Enter password"
-              placeholderTextColor={colors.textMuted}
               secureTextEntry
-              autoComplete="password"
               textContentType="password"
               style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={colors.textMuted}
               onSubmitEditing={onSubmit}
             />
           </View>
@@ -542,24 +870,32 @@ function buildActiveConditions(rooms: Room[], devices: Device[], alerts: Alert[]
       icon: "sensor",
     }));
   const items = [...alertItems, ...roomItems, ...deviceItems].slice(0, 7);
-  return { items, rooms: roomItems.length };
+  return { items, roomCount: roomItems.length };
 }
 
-function getDisplayTarget(rooms: Room[], devices: Device[], selected: DemoScenarioType) {
-  const room =
-    selected === "smoke-detected"
-      ? rooms.find((item) => item.icon === "kitchen" || item.name.toLowerCase().includes("kitchen")) ?? rooms[0]
-      : selected === "sensor-offline"
-        ? rooms.find((item) => item.status !== "offline") ?? rooms[0]
-        : rooms.find((item) => item.icon === "living-room") ?? rooms.find((item) => item.icon === "bedroom") ?? rooms[0];
-  const roomDevices = devices.filter((device) => device.roomId === room?.id);
-  const device =
-    selected === "smoke-detected"
-      ? roomDevices.find((item) => item.type === "smoke-detector") ?? roomDevices[0]
-      : selected === "sensor-offline"
-        ? roomDevices[0] ?? devices[0]
-        : roomDevices.find((item) => item.type === "air-sensor" || item.type === "co2-sensor") ?? roomDevices[0];
-  return { room, device };
+function buildActivityPoints(readings: Reading[], status: SafetyStatus) {
+  const latest = readings.slice(0, 6);
+  const base = latest.length > 0 ? latest : [{ value: status === "critical" ? 82 : status === "warning" ? 58 : status === "offline" ? 35 : 18, status, createdAt: new Date().toISOString() } as Reading];
+  const ordered = [...base].reverse().slice(-6);
+  return ordered.map((reading, index) => {
+    const value = readingScore(reading, status);
+    return {
+      label: index === ordered.length - 1 ? "Now" : `${ordered.length - index - 1}h`,
+      value,
+      height: Math.max(22, Math.min(112, value + 18)),
+      color: statusColors[reading.status] ?? statusColors[status] ?? colors.brand,
+    };
+  });
+}
+
+function readingScore(reading: Reading, fallbackStatus: SafetyStatus) {
+  if (reading.type === "co2") return reading.value > 1100 ? 76 : reading.value > 800 ? 52 : 24;
+  if (reading.type === "smoke") return reading.value > 100 ? 92 : reading.value > 25 ? 58 : 18;
+  if (reading.type === "humidity") return reading.value > 65 ? 62 : 26;
+  if (reading.type === "temperature") return reading.value > 30 ? 58 : 24;
+  if (fallbackStatus === "critical") return 86;
+  if (fallbackStatus === "warning") return 58;
+  return 22;
 }
 
 function inferEventSeverity(item: ActivityLog, alert?: Alert): SafetyStatus {
@@ -569,6 +905,37 @@ function inferEventSeverity(item: ActivityLog, alert?: Alert): SafetyStatus {
   if (text.includes("offline")) return "offline";
   if (text.includes("warning") || text.includes("co2") || text.includes("humidity") || text.includes("temperature")) return "warning";
   return item.status;
+}
+
+function buildSuccessNotice(result: ScenarioRunResult, home: Home | null, room: Room | undefined, device: Device | undefined, meta: DemoScenarioMeta): Notice {
+  return {
+    kind: "success",
+    title: "Event applied",
+    details: [
+      { label: "Event", value: meta.title },
+      { label: "Target home", value: home?.name ?? result.homeId },
+      { label: "Target room", value: result.roomName ?? room?.name ?? "Home" },
+      { label: "Target device", value: result.deviceName ?? device?.name ?? "No device selected" },
+      { label: "Records affected", value: formatRecordsAffected(result.recordsAffected) },
+      { label: "Last sync", value: formatAlertTime(result.appliedAt) },
+    ],
+  };
+}
+
+function formatRecordsAffected(records: ScenarioRecordsAffected) {
+  const parts = [
+    countLabel(records.readings, "reading"),
+    countLabel(records.alerts, "alert"),
+    records.resolvedAlerts > 0 ? countLabel(records.resolvedAlerts, "resolved alert") : "",
+    countLabel(records.rooms, "room"),
+    countLabel(records.devices, "device"),
+    countLabel(records.activityLogs, "activity"),
+  ].filter(Boolean);
+  return parts.join(", ");
+}
+
+function countLabel(count: number, label: string) {
+  return `${count} ${label}${count === 1 ? "" : "s"}`;
 }
 
 function labelFromCategory(category: ActivityLog["category"]) {
@@ -582,6 +949,12 @@ function alertStatusLabel(status?: Alert["status"]) {
   if (status === "checking") return "Checking";
   if (status === "resolved") return "Resolved";
   return "Active";
+}
+
+function scenarioStatus(scenario: DemoScenarioMeta): SafetyStatus {
+  if (scenario.severity === "good") return "good";
+  if (scenario.severity === "offline") return "offline";
+  return scenario.severity;
 }
 
 function scenarioIcon(type: DemoScenarioType): AppIconName {
@@ -601,96 +974,122 @@ function deviceIcon(device: Device): AppIconName {
   return "sensor";
 }
 
+function homeStatusLabel(status: SafetyStatus) {
+  if (status === "critical") return "Critical";
+  if (status === "warning") return "Warning";
+  if (status === "offline") return "Offline";
+  return "Good";
+}
+
+function metricTone(status: SafetyStatus): "neutral" | "good" | "warning" {
+  if (status === "good") return "good";
+  if (status === "warning" || status === "critical" || status === "offline") return "warning";
+  return "neutral";
+}
+
+function formatConsoleDate(date: Date) {
+  return date.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 const styles = StyleSheet.create({
   safe: {
-    backgroundColor: "#F4F8FB",
+    backgroundColor: "#F6FAFC",
     flex: 1,
   },
-  content: {
-    alignSelf: "center",
-    gap: spacing.lg,
-    maxWidth: 1320,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    width: "100%",
-  },
-  headerBar: {
-    alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+  shell: {
+    backgroundColor: "#F6FAFC",
+    flex: 1,
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
+  },
+  sidebar: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E2E8F0",
+    borderRadius: 16,
+    borderWidth: 1,
     justifyContent: "space-between",
-    minHeight: 76,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    margin: spacing.sm,
+    padding: spacing.lg,
+    width: 248,
     ...shadows.cardSubtle,
   },
-  brandBlock: {
+  sidebarBrand: {
     alignItems: "center",
     flexDirection: "row",
     gap: spacing.sm,
   },
-  logoMark: {
+  sidebarLogo: {
     alignItems: "center",
-    backgroundColor: colors.iconSurface,
-    borderRadius: 16,
-    height: 44,
+    backgroundColor: colors.brand,
+    borderRadius: 18,
+    height: 48,
     justifyContent: "center",
-    width: 44,
+    width: 48,
   },
-  brandCopy: {
-    gap: 2,
-  },
-  brandName: {
+  sidebarName: {
     color: colors.textPrimary,
     fontFamily: fonts.bold,
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: 21,
+    lineHeight: 27,
   },
-  headerMeta: {
+  sidebarMeta: {
     color: colors.textMuted,
     fontFamily: fonts.semiBold,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 15,
     textTransform: "uppercase",
   },
-  headerRight: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    justifyContent: "flex-end",
+  navList: {
+    gap: spacing.xs,
+    marginTop: spacing.xxl,
   },
-  operationBadge: {
+  navItem: {
     alignItems: "center",
-    backgroundColor: colors.iconSurface,
-    borderColor: "#CFE4FF",
-    borderRadius: radius.pill,
+    borderRadius: 10,
+    flexDirection: "row",
+    gap: spacing.sm,
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
+  },
+  navItemActive: {
+    backgroundColor: "#EAF2FF",
+  },
+  navLabel: {
+    color: colors.textSecondary,
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  navLabelActive: {
+    color: colors.brand,
+  },
+  sidebarFooter: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceSubtle,
+    borderColor: colors.border,
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
-    gap: spacing.xs,
-    minHeight: 34,
-    paddingHorizontal: spacing.sm,
+    gap: spacing.sm,
+    minHeight: 76,
+    padding: spacing.sm,
   },
-  liveDot: {
-    backgroundColor: colors.success,
+  accountAvatar: {
+    alignItems: "center",
+    backgroundColor: colors.iconSurface,
     borderRadius: radius.pill,
-    height: 8,
-    width: 8,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
   },
-  operationBadgeText: {
+  accountAvatarText: {
     color: colors.brand,
-    fontFamily: fonts.semiBold,
+    fontFamily: fonts.bold,
     fontSize: 12,
     lineHeight: 16,
   },
-  accountCluster: {
-    alignItems: "flex-end",
-    maxWidth: 220,
+  accountCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   accountName: {
     color: colors.textPrimary,
@@ -704,49 +1103,74 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
-  logoutAction: {
+  sidebarLogout: {
+    alignItems: "center",
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  sidebarFooterText: {
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  mobileBrand: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: spacing.md,
+  },
+  mobileLogout: {
     alignItems: "center",
     backgroundColor: colors.surfaceSubtle,
-    borderColor: colors.border,
     borderRadius: radius.pill,
-    borderWidth: 1,
     height: 38,
     justifyContent: "center",
     width: 38,
   },
-  pageIntro: {
-    alignItems: "flex-start",
+  page: {
+    flex: 1,
+  },
+  pageContent: {
+    alignSelf: "center",
+    gap: spacing.md,
+    maxWidth: 1440,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    width: "100%",
+  },
+  header: {
+    alignItems: "center",
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
     justifyContent: "space-between",
+    minHeight: 72,
   },
-  pageIntroCopy: {
+  headerCopy: {
     flex: 1,
     gap: spacing.xs,
     minWidth: 300,
   },
-  eyebrow: {
+  headerTopLine: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  headerKicker: {
     color: colors.brand,
     fontFamily: fonts.semiBold,
     fontSize: 12,
     lineHeight: 16,
     textTransform: "uppercase",
   },
-  title: {
-    color: colors.textPrimary,
-    fontFamily: fonts.bold,
-    fontSize: 30,
-    lineHeight: 38,
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    lineHeight: 23,
-    maxWidth: 720,
-  },
-  homePill: {
+  statusBadge: {
     alignItems: "center",
     backgroundColor: colors.white,
     borderColor: colors.border,
@@ -756,12 +1180,214 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     minHeight: 42,
     paddingHorizontal: spacing.md,
+    ...shadows.cardSubtle,
   },
-  homePillText: {
+  liveDot: {
+    backgroundColor: colors.success,
+    borderRadius: radius.pill,
+    height: 8,
+    width: 8,
+  },
+  statusBadgeText: {
     color: colors.textPrimary,
     fontFamily: fonts.semiBold,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  headerTitle: {
+    color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 28,
+    lineHeight: 35,
+  },
+  headerSubtitle: {
+    color: colors.textSecondary,
+    fontFamily: fonts.regular,
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 19,
+  },
+  headerTools: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    justifyContent: "flex-end",
+  },
+  notificationButton: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: "center",
+    position: "relative",
+    width: 42,
+    ...shadows.cardSubtle,
+  },
+  notificationDot: {
+    backgroundColor: colors.critical,
+    borderColor: colors.white,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    height: 11,
+    position: "absolute",
+    right: 8,
+    top: 8,
+    width: 11,
+  },
+  dateBox: {
+    backgroundColor: "transparent",
+    minHeight: 46,
+    minWidth: 132,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  dateLabel: {
+    color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  dateValue: {
+    color: colors.textMuted,
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  refreshButton: {
+    height: 42,
+    minWidth: 42,
+    paddingHorizontal: spacing.md,
+  },
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  selectorGroup: {
+    gap: spacing.xs,
+    minWidth: 150,
+  },
+  selectorLabel: {
+    color: colors.textMuted,
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    lineHeight: 15,
+    textTransform: "uppercase",
+    display: "none",
+  },
+  selectorOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+  },
+  selectorPill: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    maxWidth: 210,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    justifyContent: "center",
+    ...shadows.cardSubtle,
+  },
+  selectorPillActive: {
+    backgroundColor: colors.white,
+    borderColor: colors.brand,
+  },
+  selectorPillDisabled: {
+    opacity: 0.55,
+  },
+  selectorPillText: {
+    color: colors.textSecondary,
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  selectorPillTextActive: {
+    color: colors.brand,
+  },
+  topDashboardGrid: {
+    alignItems: "stretch",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  metricsGrid: {
+    flex: 1.55,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    minWidth: 620,
+  },
+  topChart: {
+    flex: 0.85,
+    minWidth: 320,
+  },
+  metricCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexBasis: 150,
+    flexDirection: "row",
+    flexGrow: 1,
+    gap: spacing.sm,
+    minHeight: 118,
+    minWidth: 148,
+    padding: spacing.md,
+    ...shadows.cardSubtle,
+  },
+  metricIcon: {
+    alignItems: "center",
+    borderRadius: 10,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
+  metricCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  metricLabel: {
+    color: colors.textMuted,
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    lineHeight: 15,
+    textTransform: "uppercase",
+  },
+  metricValue: {
+    color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 22,
+    lineHeight: 29,
+    marginTop: spacing.sm,
+  },
+  metricDetail: {
+    color: colors.textSecondary,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+  },
+  dashboardGrid: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.lg,
+  },
+  controlsColumn: {
+    flex: 1.65,
+    gap: spacing.md,
+    minWidth: 340,
+  },
+  rightRail: {
+    flex: 0.85,
+    gap: spacing.md,
+    minWidth: 320,
   },
   sectionHeader: {
     alignItems: "center",
@@ -782,92 +1408,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  metricsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  metricCard: {
-    backgroundColor: colors.white,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    flexBasis: 210,
-    flexDirection: "row",
-    flexGrow: 1,
-    gap: spacing.sm,
-    minHeight: 106,
-    minWidth: 190,
-    padding: spacing.md,
-    ...shadows.cardSubtle,
-  },
-  metricIcon: {
-    alignItems: "center",
-    borderRadius: 14,
-    height: 38,
-    justifyContent: "center",
-    width: 38,
-  },
-  metricCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  metricLabel: {
-    color: colors.textMuted,
-    fontFamily: fonts.semiBold,
-    fontSize: 11,
-    lineHeight: 15,
-    textTransform: "uppercase",
-  },
-  metricValue: {
-    color: colors.textPrimary,
-    fontFamily: fonts.bold,
-    fontSize: 22,
-    lineHeight: 29,
-    marginTop: 2,
-  },
-  metricDetail: {
-    color: colors.textSecondary,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 4,
-  },
-  mainGrid: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.lg,
-  },
-  mainColumn: {
-    flex: 1.65,
-    gap: spacing.md,
-    minWidth: 320,
-  },
-  sideColumn: {
-    flex: 0.85,
-    gap: spacing.md,
-    minWidth: 300,
-  },
   eventGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   eventCard: {
     backgroundColor: colors.white,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: 16,
     borderWidth: 1,
-    flexBasis: 265,
+    flexBasis: 330,
     flexGrow: 1,
     gap: spacing.sm,
-    minHeight: 254,
-    padding: spacing.md,
+    minHeight: 214,
+    padding: spacing.sm,
     ...shadows.cardSubtle,
   },
   eventCardSelected: {
     borderColor: colors.brand,
+    borderWidth: 2,
+    shadowColor: colors.brand,
+    shadowOpacity: 0.08,
   },
   eventHitArea: {
     gap: spacing.sm,
@@ -880,17 +1442,17 @@ const styles = StyleSheet.create({
   eventIcon: {
     alignItems: "center",
     backgroundColor: colors.iconSurface,
-    borderRadius: 14,
-    height: 42,
+    borderRadius: 10,
+    height: 36,
     justifyContent: "center",
-    width: 42,
+    width: 36,
   },
   eventIconSelected: {
     backgroundColor: colors.brand,
   },
   eventCopy: {
     gap: spacing.xxs,
-    minHeight: 72,
+    minHeight: 48,
   },
   eventTitle: {
     color: colors.textPrimary,
@@ -904,10 +1466,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
-  eventPreview: {
+  eventTargetBox: {
     backgroundColor: colors.surfaceSubtle,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: 8,
     borderWidth: 1,
     gap: 2,
     padding: spacing.sm,
@@ -931,7 +1493,7 @@ const styles = StyleSheet.create({
   miniPreviewItem: {
     backgroundColor: colors.white,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: 8,
     borderWidth: 1,
     flex: 1,
     paddingHorizontal: spacing.sm,
@@ -950,11 +1512,24 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   eventButton: {
-    borderRadius: radius.sm,
-    height: 42,
+    borderRadius: 8,
+    height: 38,
     marginTop: "auto",
   },
-  splitSection: {
+  controlsFooter: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.xxs,
+    justifyContent: "center",
+    paddingTop: spacing.xs,
+  },
+  controlsFooterText: {
+    color: colors.brand,
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  secondaryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
@@ -970,7 +1545,7 @@ const styles = StyleSheet.create({
   panel: {
     backgroundColor: colors.white,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: 16,
     borderWidth: 1,
     gap: spacing.sm,
     padding: spacing.md,
@@ -987,10 +1562,65 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
   },
+  chartBox: {
+    gap: spacing.md,
+  },
+  chartHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  chartValue: {
+    color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 30,
+    lineHeight: 38,
+  },
+  chartCaption: {
+    color: colors.textMuted,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  chartBars: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    gap: spacing.sm,
+    height: 154,
+    justifyContent: "space-between",
+  },
+  chartPoint: {
+    alignItems: "center",
+    flex: 1,
+    gap: spacing.xs,
+  },
+  chartTrack: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.pill,
+    height: 122,
+    justifyContent: "flex-end",
+    overflow: "hidden",
+    width: "100%",
+  },
+  chartBar: {
+    borderRadius: radius.pill,
+    width: "100%",
+  },
+  chartLabel: {
+    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 10,
+    lineHeight: 14,
+  },
+  previewList: {
+    gap: spacing.xs,
+  },
   previewHeader: {
     alignItems: "center",
     flexDirection: "row",
     gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   previewIcon: {
     alignItems: "center",
@@ -1009,9 +1639,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 15,
     lineHeight: 20,
-  },
-  previewList: {
-    gap: spacing.xs,
   },
   previewRow: {
     alignItems: "center",
@@ -1182,13 +1809,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   notice: {
-    alignItems: "center",
+    alignItems: "flex-start",
     borderRadius: radius.lg,
     borderWidth: 1,
     flexDirection: "row",
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    padding: spacing.md,
   },
   noticeSuccess: {
     backgroundColor: colors.successSurface,
@@ -1198,8 +1824,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.criticalSurface,
     borderColor: colors.borderDanger,
   },
-  noticeText: {
+  noticeCopy: {
     flex: 1,
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  noticeTitle: {
     fontFamily: fonts.semiBold,
     fontSize: 13,
     lineHeight: 18,
@@ -1209,6 +1839,33 @@ const styles = StyleSheet.create({
   },
   noticeTextError: {
     color: colors.critical,
+  },
+  noticeDetails: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+  },
+  noticeDetailItem: {
+    backgroundColor: "rgba(255,255,255,0.62)",
+    borderColor: "rgba(15,23,42,0.08)",
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    minWidth: 138,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  noticeDetailLabel: {
+    color: colors.textMuted,
+    fontFamily: fonts.semiBold,
+    fontSize: 10,
+    lineHeight: 14,
+    textTransform: "uppercase",
+  },
+  noticeDetailValue: {
+    color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    lineHeight: 17,
   },
   accessShell: {
     alignItems: "center",
@@ -1223,7 +1880,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.xl,
-    maxWidth: 880,
+    maxWidth: 900,
     padding: spacing.xl,
     width: "100%",
     ...shadows.cardSubtle,

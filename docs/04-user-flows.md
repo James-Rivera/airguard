@@ -21,7 +21,7 @@ Expected result: authenticated user reaches home setup with a clean account.
 
 Entry screen: login.
 User action: enter Supabase credentials.
-App behavior: store signs in, bootstraps session, profile, and active home.
+App behavior: store signs in, bootstraps session, profile, accessible homes, and active home.
 Supabase tables affected: auth session read, `profiles`, `home_members`, `homes`.
 Expected result: user reaches onboarding or dashboard based on persisted data.
 
@@ -61,7 +61,7 @@ Expected result: selected sensor profile exists as a real database record after 
 
 Entry screen: home tab.
 User action: open app or return from setup.
-App behavior: store loads home, rooms, devices, readings, alerts, and activity.
+App behavior: store loads home, rooms, devices, readings, alerts, and activity. Pull-to-refresh calls the same store reload path to fetch the latest Supabase-backed state.
 Supabase tables affected: read from `homes`, `rooms`, `devices`, `readings`, `alerts`, `activity_logs`.
 Expected result: dashboard reflects database-backed home state.
 
@@ -118,9 +118,9 @@ Expected result: critical reading and alert records are created.
 
 Entry screen: `/simulator` web sensor console.
 User action: choose Normal Reading, High CO2 / Poor Ventilation, Smoke Detected, Sensor Offline, Humidity or Temperature Warning, or Reset to Normal.
-App behavior: screen calls the store `runDemoScenario(type)` action. The store requires an authenticated current user and an active home loaded through membership-protected services, calls the shared scenario service, then reloads home data from Supabase.
+App behavior: screen calls the store `runDemoScenario(type, target)` action with the selected room/device. The store requires an authenticated current user and an active member home loaded through membership-protected services, calls the shared scenario service, then reloads home data from Supabase.
 Supabase tables affected: `rooms`, `devices`, `readings`, `alerts`, `activity_logs`.
-Expected result: dashboard, rooms, alerts, and activity reflect the event from backend state.
+Expected result: dashboard, rooms, alerts, and activity reflect the event from backend state. If the mobile app is already open, the user can pull to refresh the home dashboard, rooms, room detail, devices, alerts, or activity screens to load the latest data.
 
 ## Start Checking
 

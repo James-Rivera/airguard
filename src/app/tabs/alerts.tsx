@@ -7,6 +7,7 @@ import { SummaryCard } from "@/components/airguard/SummaryCard";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getActiveAlerts, getAlertsByFilter, getCriticalAlerts } from "@/domain/selectors";
+import { useHomeDataRefresh } from "@/hooks/useHomeDataRefresh";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { spacing } from "@/theme/index";
@@ -16,12 +17,13 @@ type Filter = "All" | "Active" | "Critical" | "Resolved";
 export default function AlertsRoute() {
   const [filter, setFilter] = useState<Filter>("All");
   const { state } = useAirGuard();
+  const refreshControl = useHomeDataRefresh();
   const alerts = state.alerts;
   const shown = useMemo(() => getAlertsByFilter(state, filter), [state, filter]);
   const emptyCopy = getEmptyCopy(filter, alerts.length);
 
   return (
-    <AppScreen title="Alerts">
+    <AppScreen title="Alerts" refreshControl={refreshControl}>
       <View style={styles.summary}>
         <SummaryCard label="Total Alerts" value={alerts.length} detail={`${getActiveAlerts(state).length} active`} />
         <SummaryCard label="Problems Detected" value={getCriticalAlerts(state).length} detail="Needs attention" />

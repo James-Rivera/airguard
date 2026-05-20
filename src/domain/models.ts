@@ -100,6 +100,7 @@ export type AirGuardData = {
   session: Session | null;
   onboardingComplete: boolean;
   onboarding: OnboardingState;
+  homes: Home[];
   home: Home | null;
   rooms: Room[];
   devices: Device[];

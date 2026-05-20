@@ -28,7 +28,7 @@ Readings are inserted into `readings` through `reading-service`. Controlled sens
 
 ## Alerts
 
-Alerts are loaded and updated through `alert-service`. Scenario warnings and critical events insert real alert records, and reset-to-normal resolves active alerts.
+Alerts are loaded and updated through `alert-service`. Scenario warnings and critical events insert real alert records, and reset-to-normal resolves active alerts for the selected target or active home scope.
 
 ## Activity Logs
 
@@ -36,15 +36,19 @@ Activity is inserted into `activity_logs` through `activity-service` after impor
 
 ## More/Admin
 
-More is for homeowner/profile navigation. Authenticated users can open the AirGuard Sensor Console, which runs only against the active home loaded through membership-protected data.
+More is for homeowner/profile navigation. Authenticated users can open the AirGuard Sensor Console, which runs only against homes loaded through membership-protected data.
 
 ## Sensor Operations Controls
 
-Sensor operations controls call the shared `runDemoScenario(type)` store action. They do not replace Supabase as the data source, and Phase 1 access is limited to authenticated users operating on their own active home data.
+Sensor operations controls call the shared `runDemoScenario(type, target)` store action. They do not replace Supabase as the data source, and access is limited to authenticated users operating on their own member home data.
 
 ## Web Sensor Console
 
-The `/simulator` route provides a browser-friendly AirGuard Sensor Console for controlled sensor events. It uses shared scenario metadata for previews and calls the same store action/scenario service as the rest of the app, so event output is saved to Supabase and later read by the mobile app.
+The `/simulator` route provides a browser-friendly AirGuard Sensor Console for controlled sensor events. It uses shared scenario metadata for previews, lets the user choose a member home, room, and device target, and calls the same store action/scenario service as the rest of the app. Event output is saved to Supabase and later read by the mobile app.
+
+## Manual Data Refresh
+
+Primary mobile data screens use pull-to-refresh through the shared store `loadHomeData` action. The refresh path reloads the active member home, rooms, devices, readings, alerts, and activity from Supabase through services, so mobile users can manually sync after a controlled sensor event is applied from the web console.
 
 ## Home Settings And Checklist
 

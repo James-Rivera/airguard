@@ -7,16 +7,18 @@ import { AppScreen } from "@/components/ui/AppScreen";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getDeviceSummary, getDevices, getLatestReadingForDevice } from "@/domain/selectors";
+import { useHomeDataRefresh } from "@/hooks/useHomeDataRefresh";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { colors, radius, spacing } from "@/theme/index";
 
 export default function DevicesRoute() {
   const { state } = useAirGuard();
+  const refreshControl = useHomeDataRefresh();
   const summary = getDeviceSummary(state);
   const devices = getDevices(state);
   return (
-    <AppScreen title="Devices" headerAction={<AddButton onPress={() => router.push(routes.addDevice)} />}>
+    <AppScreen title="Devices" headerAction={<AddButton onPress={() => router.push(routes.addDevice)} />} refreshControl={refreshControl}>
       <View style={styles.summary}>
         <SummaryCard label="Total Devices" value={summary.total} detail={`${summary.online} online`} />
         <SummaryCard label="Rooms" value={summary.rooms} detail={`${summary.offline} need attention`} />

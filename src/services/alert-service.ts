@@ -76,13 +76,16 @@ export async function resolveAlert(alertId: string) {
   return mapAlert(data as AlertRow);
 }
 
-export async function resolveActiveAlerts(homeId: string) {
-  const { data, error } = await supabase
+export async function resolveActiveAlerts(homeId: string, roomId?: string) {
+  let query = supabase
     .from("alerts")
     .update({ status: "resolved", resolved_at: new Date().toISOString() })
     .eq("home_id", homeId)
-    .neq("status", "resolved")
-    .select("*");
+    .neq("status", "resolved");
+
+  if (roomId) query = query.eq("room_id", roomId);
+
+  const { data, error } = await query.select("*");
   if (error) throw error;
   return (data ?? []).map((row) => mapAlert(row as AlertRow));
 }

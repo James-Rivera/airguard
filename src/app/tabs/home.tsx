@@ -10,6 +10,7 @@ import { AppScreen, SectionHeader } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import type { Reading } from "@/domain/models";
 import { getDashboardSummary, getReadingsByRoomId } from "@/domain/selectors";
+import { useHomeDataRefresh } from "@/hooks/useHomeDataRefresh";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { colors, fonts, gradient, layout, spacing, radius } from "@/theme/index";
@@ -23,6 +24,7 @@ const dashboardReadingTypes: Array<{ type: Reading["type"]; label: string }> = [
 
 export default function HomeRoute() {
   const { state } = useAirGuard();
+  const refreshControl = useHomeDataRefresh();
   const { width } = useWindowDimensions();
   const summary = getDashboardSummary(state);
   const primaryAlert = summary.criticalAlerts[0] ?? summary.activeAlerts[0];
@@ -40,7 +42,7 @@ export default function HomeRoute() {
   const dashboardReadings = useMemo(() => getDashboardReadingTiles(state.readings, state.devices.map((device) => device.roomId)), [state.devices, state.readings]);
 
   return (
-    <AppScreen>
+    <AppScreen refreshControl={refreshControl}>
       <View style={styles.header}>
         <View style={styles.headerText}>
           <AppText style={[styles.brand, { fontSize: brandSize, lineHeight: brandLineHeight }]}>

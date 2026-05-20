@@ -6,12 +6,14 @@ import { AppScreen } from "@/components/ui/AppScreen";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getReadingsByRoomId, getRooms } from "@/domain/selectors";
+import { useHomeDataRefresh } from "@/hooks/useHomeDataRefresh";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { colors, layout, radius, spacing } from "@/theme/index";
 
 export default function RoomsRoute() {
   const { state } = useAirGuard();
+  const refreshControl = useHomeDataRefresh();
   const { width } = useWindowDimensions();
   const rooms = getRooms(state);
   const shellWidth = Math.min(width, layout.maxPhoneWidth);
@@ -20,7 +22,7 @@ export default function RoomsRoute() {
   const cardWidth = Math.floor((contentWidth - gap) / 2);
 
   return (
-    <AppScreen title="Rooms" headerAction={<AddButton onPress={() => router.push(routes.addRoom)} />}>
+    <AppScreen title="Rooms" headerAction={<AddButton onPress={() => router.push(routes.addRoom)} />} refreshControl={refreshControl}>
       {rooms.length === 0 ? (
         <EmptyState title="No rooms yet" message="Add the first room you want AirGuard to monitor." actionLabel="Add Room" onAction={() => router.push(routes.addRoom)} />
       ) : null}
