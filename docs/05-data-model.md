@@ -29,6 +29,7 @@ Devices belong to homes and optionally rooms. Physical pairing is simulated, but
 
 Source of truth: `readings`.
 Readings belong to homes, rooms, and optionally devices. Values are simulated until hardware integration, but each generated value is a database record.
+The store keeps both latest deduped readings for current UI tiles and recent reading history for reports.
 
 ## Alert
 

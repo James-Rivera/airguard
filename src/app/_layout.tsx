@@ -29,6 +29,8 @@ export default function RootLayout() {
           <Stack.Screen name="setup/add-device" />
           <Stack.Screen name="settings/home" />
           <Stack.Screen name="safety-checklist" />
+          <Stack.Screen name="risks" />
+          <Stack.Screen name="reports" />
           <Stack.Screen name="simulator" />
           <Stack.Screen name="activity" />
           <Stack.Screen name="tabs" />

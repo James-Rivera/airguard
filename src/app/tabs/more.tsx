@@ -55,6 +55,8 @@ function menuAction(label: string) {
   if (label === "Home Settings") return () => router.push(routes.homeSettings);
   if (label === "Rooms") return () => router.push("/tabs/rooms");
   if (label === "Devices") return () => router.push("/tabs/devices");
+  if (label === "Risks") return () => router.push(routes.risks);
+  if (label === "Reports") return () => router.push(routes.reports);
   if (label === "Activity") return () => router.push("/activity");
   if (label === "Safety Checklist") return () => router.push(routes.safetyChecklist);
   return undefined;

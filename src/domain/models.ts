@@ -105,6 +105,7 @@ export type AirGuardData = {
   rooms: Room[];
   devices: Device[];
   readings: Reading[];
+  readingHistory: Reading[];
   alerts: Alert[];
   activityLogs: ActivityLog[];
   pairingDraft: PairingDraft;

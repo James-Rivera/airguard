@@ -14,6 +14,9 @@ export type AppIconName =
   | "more"
   | "temperature"
   | "humidity"
+  | "arrow-left"
+  | "chart"
+  | "checklist"
   | "chevron-right"
   | "note"
   | "logout"
@@ -154,6 +157,36 @@ export function AppIcon({ name, size = 24, color = colors.brand, secondaryColor 
       <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
         <Path d="M12 3.5s6 6.1 6 10.5a6 6 0 0 1-12 0c0-4.4 6-10.5 6-10.5Z" stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
         <Path d="M9.5 15.5c.7 1.2 1.6 1.8 2.8 1.8" stroke={secondaryColor} strokeWidth={2} strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  if (name === "arrow-left") {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Path d="M15 5 8 12l7 7M9 12h11" stroke={stroke} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
+    );
+  }
+
+  if (name === "chart") {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Path d="M4 19V5" stroke={stroke} strokeWidth={2} strokeLinecap="round" />
+        <Path d="M4 19h16" stroke={stroke} strokeWidth={2} strokeLinecap="round" />
+        <Rect x={7} y={12} width={2.8} height={5} rx={1} fill={secondaryColor} />
+        <Rect x={11} y={8} width={2.8} height={9} rx={1} fill={stroke} />
+        <Rect x={15} y={10} width={2.8} height={7} rx={1} fill={secondaryColor} />
+      </Svg>
+    );
+  }
+
+  if (name === "checklist") {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Rect x={5} y={4} width={14} height={16} rx={3} stroke={stroke} strokeWidth={2} />
+        <Path d="m8 9 1.3 1.3L12 7.8" stroke={secondaryColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        <Path d="M14 9h2M8 15h.1M11.5 15H16" stroke={stroke} strokeWidth={2} strokeLinecap="round" />
       </Svg>
     );
   }

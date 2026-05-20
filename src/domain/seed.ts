@@ -20,6 +20,8 @@ export const menuItems = [
   { label: "Home Settings", detail: "Home name and address", icon: "settings" },
   { label: "Rooms", detail: "Manage monitored rooms", icon: "rooms" },
   { label: "Devices", detail: "Pair and manage sensors", icon: "device" },
+  { label: "Risks", detail: "Unsafe conditions and safety warnings", icon: "alert" },
+  { label: "Reports", detail: "Air quality summary and history", icon: "note" },
   { label: "Activity", detail: "Recent actions and system events", icon: "note" },
   { label: "Safety Checklist", detail: "Readiness tasks for the home", icon: "check" },
 ];

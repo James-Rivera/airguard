@@ -105,10 +105,11 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
 
   async function loadHomeDataFor(home: Home, profile = state.currentUser, onboardingComplete = state.onboardingComplete, homes = state.homes) {
     await deviceService.removeExactDuplicateDevices(home.id);
-    const [rooms, devices, readings, alerts, activityLogs] = await Promise.all([
+    const [rooms, devices, readings, readingHistory, alerts, activityLogs] = await Promise.all([
       roomService.getRooms(home.id),
       deviceService.getDevices(home.id),
       readingService.getLatestReadings(home.id),
+      readingService.getRecentReadingHistory(home.id),
       alertService.getAlerts(home.id),
       activityService.getRecentActivity(home.id),
     ]);
@@ -122,6 +123,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
       rooms,
       devices,
       readings,
+      readingHistory,
       alerts,
       activityLogs,
     }));
@@ -132,7 +134,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
       const homes = await homeService.getHomesForCurrentUser();
       const activeHome = state.home ? homes.find((home) => home.id === state.home?.id) ?? homes[0] : homes[0];
       if (!activeHome) {
-        setState((current) => ({ ...current, homes, home: null, rooms: [], devices: [], readings: [], alerts: [], activityLogs: [] }));
+        setState((current) => ({ ...current, homes, home: null, rooms: [], devices: [], readings: [], readingHistory: [], alerts: [], activityLogs: [] }));
         return;
       }
       await loadHomeDataFor(activeHome, state.currentUser, state.onboardingComplete, homes);
@@ -439,6 +441,7 @@ function blankState(): AirGuardData {
     rooms: [],
     devices: [],
     readings: [],
+    readingHistory: [],
     alerts: [],
     activityLogs: [],
     pairingDraft: {},

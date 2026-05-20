@@ -6,7 +6,7 @@ AirGuard is an Expo React Native smart home air safety app backed by Supabase. I
 
 ## Current MVP Status
 
-The MVP has Supabase Auth, Supabase Postgres persistence, RLS, profile creation, onboarding state, homes, memberships, rooms, devices, readings, alerts, and activity logs. The mobile UI uses a Figma-inspired design system implemented with React Native primitives and Expo Router.
+The MVP has Supabase Auth, Supabase Postgres persistence, RLS, profile creation, onboarding state, homes, memberships, rooms, devices, readings, alerts, activity logs, computed risks, reports, and setup readiness. The mobile UI uses a Figma-inspired design system implemented with React Native primitives and Expo Router.
 
 ## Real vs Simulated
 
@@ -16,6 +16,7 @@ Real now:
 - profile records and onboarding state
 - homes and home membership
 - room, device, reading, alert, and activity log records
+- computed risks, reports, and readiness status from backend-backed home data
 - RLS-backed database access
 - store/service data flow
 

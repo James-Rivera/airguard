@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View, type ViewStyle } from "react-native";
-import { router } from "expo-router";
+import { LineChart, type lineDataItem } from "react-native-gifted-charts";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
@@ -18,7 +18,6 @@ import {
 } from "@/domain/scenarios";
 import { getDeviceTypeLabel, getHomeSafetyStatus, getRoomSafetyStatus } from "@/domain/selectors";
 import { formatAlertTime, formatReadingValue, formatRelativeMinutes, initials } from "@/lib/formatters";
-import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { useSession } from "@/state/session";
 import { colors, fonts, radius, shadows, spacing, statusColors, statusSurfaces } from "@/theme/index";
@@ -77,10 +76,12 @@ export default function SensorSimulatorRoute() {
     () => roomDevices.find((device) => device.id === selectedDeviceId) ?? roomDevices[0],
     [roomDevices, selectedDeviceId],
   );
-  const targetReadings = useMemo(
-    () => (selectedRoom ? state.readings.filter((reading) => reading.roomId === selectedRoom.id) : state.readings),
-    [selectedRoom, state.readings],
-  );
+  const targetReadings = useMemo(() => {
+    const source = state.readingHistory.length > 0 ? state.readingHistory : state.readings;
+    const scopedToDevice = selectedDevice ? source.filter((reading) => reading.deviceId === selectedDevice.id) : [];
+    if (scopedToDevice.length > 0) return scopedToDevice;
+    return selectedRoom ? source.filter((reading) => reading.roomId === selectedRoom.id) : source;
+  }, [selectedDevice, selectedRoom, state.readingHistory, state.readings]);
   const recentEvents = useMemo(() => buildRecentEvents(state.activityLogs, state.rooms, state.alerts), [state.activityLogs, state.rooms, state.alerts]);
   const activeConditions = useMemo(() => buildActiveConditions(state.rooms, state.devices, activeAlerts), [activeAlerts, state.devices, state.rooms]);
   const latestReading = state.readings[0];
@@ -135,7 +136,16 @@ export default function SensorSimulatorRoute() {
     setIsRefreshing(true);
     try {
       await actions.loadHomeData();
-      setLastSync(new Date());
+      const refreshedAt = new Date();
+      setLastSync(refreshedAt);
+      setNotice({
+        kind: "success",
+        title: "Console refreshed",
+        details: [
+          { label: "Home", value: state.home?.name ?? "No active home" },
+          { label: "Last sync", value: formatAlertTime(refreshedAt.toISOString()) },
+        ],
+      });
     } catch (err) {
       setNotice({ kind: "error", title: err instanceof Error ? err.message : "The console could not refresh home data." });
     } finally {
@@ -184,8 +194,11 @@ export default function SensorSimulatorRoute() {
           {!isWide ? <MobileBrand user={user} home={state.home} onLogout={logout} /> : null}
           <ConsoleHeader
             home={state.home}
+            homeStatus={getHomeSafetyStatus(state)}
             activeAlerts={activeAlerts.length}
             lastSync={lastSync}
+            selectedRoom={selectedRoom}
+            selectedDevice={selectedDevice}
             isRefreshing={isRefreshing}
             onRefresh={refreshConsole}
           />
@@ -333,12 +346,7 @@ function Sidebar({ user, home, onLogout }: { user: { name: string; email: string
         </View>
       </View>
       <View style={styles.navList}>
-        <NavItem label="Dashboard" icon="home" active onPress={() => router.push(routes.simulator)} />
-        <NavItem label="Rooms" icon="rooms" onPress={() => router.push(routes.rooms)} />
-        <NavItem label="Devices" icon="device" onPress={() => router.push(routes.devices)} />
-        <NavItem label="Alerts" icon="alert" onPress={() => router.push(routes.alerts)} />
-        <NavItem label="Reports" icon="note" />
-        <NavItem label="Settings" icon="settings" onPress={() => router.push(routes.homeSettings)} />
+        <NavItem label="Dashboard" icon="home" active />
       </View>
       <View style={styles.sidebarFooter}>
         {user ? (
@@ -385,7 +393,7 @@ function MobileBrand({ user, home, onLogout }: { user: { name: string; email: st
 
 function NavItem({ label, icon, active = false, onPress }: { label: string; icon: AppIconName; active?: boolean; onPress?: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[styles.navItem, active && styles.navItemActive]} accessibilityRole="button">
+    <Pressable onPress={onPress} disabled={!onPress} style={[styles.navItem, active && styles.navItemActive]} accessibilityRole={onPress ? "button" : undefined}>
       <AppIcon name={icon} size={19} color={active ? colors.brand : colors.textSecondary} secondaryColor={active ? colors.accent : colors.textMuted} />
       <AppText style={[styles.navLabel, active && styles.navLabelActive]}>{label}</AppText>
     </Pressable>
@@ -394,39 +402,51 @@ function NavItem({ label, icon, active = false, onPress }: { label: string; icon
 
 function ConsoleHeader({
   home,
+  homeStatus,
   activeAlerts,
   lastSync,
+  selectedRoom,
+  selectedDevice,
   isRefreshing,
   onRefresh,
 }: {
   home: Home | null;
+  homeStatus: SafetyStatus;
   activeAlerts: number;
   lastSync: Date | null;
+  selectedRoom?: Room;
+  selectedDevice?: Device;
   isRefreshing: boolean;
   onRefresh: () => void;
 }) {
+  const statusLabel = homeStatusLabel(homeStatus);
+  const statusColor = statusColors[homeStatus] ?? colors.success;
+  const syncLabel = lastSync ? formatAlertTime(lastSync.toISOString()) : "Not synced this session";
+  const targetLabel = selectedDevice?.name ?? selectedRoom?.name ?? "No target selected";
   return (
     <View style={styles.header}>
       <View style={styles.headerCopy}>
-        <View style={styles.headerTopLine}>
-          <AppText style={styles.headerKicker}>AirGuard Operations</AppText>
-        </View>
         <AppText style={styles.headerTitle}>Sensor Console</AppText>
-        <AppText style={styles.headerSubtitle}>Monitor air quality in your home and apply controlled actions to keep your space healthy.</AppText>
+        <View style={styles.headerMetaRow}>
+          <AppText style={styles.headerMeta} numberOfLines={1}>Home: {home?.name ?? "No home selected"}</AppText>
+          <AppText style={styles.headerMetaDot}>•</AppText>
+          <AppText style={styles.headerMeta} numberOfLines={1}>{targetLabel}</AppText>
+          <AppText style={styles.headerMetaDot}>•</AppText>
+          <AppText style={styles.headerMeta} numberOfLines={1}>Last sync: {syncLabel}</AppText>
+        </View>
       </View>
       <View style={styles.headerTools}>
         <View style={styles.statusBadge}>
-          <View style={styles.liveDot} />
-          <AppText style={styles.statusBadgeText}>Operational</AppText>
-          <AppIcon name="chevron-right" size={13} color={colors.textSecondary} secondaryColor={colors.textSecondary} />
+          <View style={[styles.liveDot, { backgroundColor: statusColor }]} />
+          <AppText style={styles.statusBadgeText}>{statusLabel === "Good" ? "Operational" : statusLabel}</AppText>
         </View>
         <View style={styles.notificationButton}>
           <AppIcon name="alert" size={18} color={activeAlerts > 0 ? colors.warning : colors.textSecondary} secondaryColor={activeAlerts > 0 ? colors.warning : colors.textMuted} />
           {activeAlerts > 0 ? <View style={styles.notificationDot} /> : null}
         </View>
         <View style={styles.dateBox}>
-          <AppText style={styles.dateLabel}>{home?.name ?? "No home selected"}</AppText>
-          <AppText style={styles.dateValue}>{lastSync ? `Synced ${formatAlertTime(lastSync.toISOString())}` : formatConsoleDate(new Date())}</AppText>
+          <AppText style={styles.dateLabel}>Active Alerts</AppText>
+          <AppText style={styles.dateValue}>{activeAlerts} open</AppText>
         </View>
         <AppButton label={isRefreshing ? "Refreshing" : "Refresh"} onPress={onRefresh} disabled={isRefreshing} variant="secondary" style={styles.refreshButton} />
       </View>
@@ -612,25 +632,104 @@ function EventCard({
 }
 
 function ActivityChart({ readings, status }: { readings: Reading[]; status: SafetyStatus }) {
-  const points = buildActivityPoints(readings, status);
+  const chart = buildActivityChart(readings, status);
+  const latest = chart.latest;
+
+  if (!chart.hasEnoughData) {
+    return (
+      <View style={styles.chartBox}>
+        <View style={styles.chartHeader}>
+          <View>
+            <AppText style={styles.chartValue}>{latest.aqi ?? "--"}</AppText>
+            <AppText style={styles.chartCaption}>AQI / condition trend</AppText>
+          </View>
+          <StatusBadge status={status} />
+        </View>
+        <View style={styles.chartEmpty}>
+          <AppIcon name="chart" size={30} color={colors.brand} secondaryColor={colors.accent} />
+          <AppText style={styles.chartEmptyTitle}>Not enough trend data</AppText>
+          <AppText style={styles.chartEmptyText}>Apply sensor events or refresh after new readings to build a room/device trend.</AppText>
+        </View>
+        <ChartLegend latest={latest} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.chartBox}>
       <View style={styles.chartHeader}>
         <View>
-          <AppText style={styles.chartValue}>{points[points.length - 1]?.value ?? 0}</AppText>
-          <AppText style={styles.chartCaption}>Air quality index</AppText>
+          <AppText style={styles.chartValue}>{latest.aqi ?? "--"}</AppText>
+          <AppText style={styles.chartCaption}>AQI / condition trend</AppText>
         </View>
         <StatusBadge status={status} />
       </View>
-      <View style={styles.chartBars}>
-        {points.map((point) => (
-          <View key={point.label} style={styles.chartPoint}>
-            <View style={styles.chartTrack}>
-              <View style={[styles.chartBar, { height: point.height, backgroundColor: point.color }]} />
-            </View>
-            <AppText style={styles.chartLabel}>{point.label}</AppText>
-          </View>
-        ))}
+      <View style={styles.lineChartWrap}>
+        <LineChart
+          data={chart.aqi}
+          data2={chart.co2.length >= 2 ? chart.co2 : undefined}
+          data3={chart.pm25.length >= 2 ? chart.pm25 : undefined}
+          width={300}
+          height={158}
+          maxValue={100}
+          noOfSections={4}
+          thickness={4}
+          thickness2={3}
+          thickness3={3}
+          color={colors.brand}
+          color2={colors.warning}
+          color3={colors.critical}
+          curved
+          areaChart
+          startFillColor={colors.brandCyan}
+          endFillColor={colors.brandCyan}
+          startOpacity={0.18}
+          endOpacity={0.02}
+          initialSpacing={8}
+          endSpacing={8}
+          spacing={Math.max(42, 300 / Math.max(chart.aqi.length, 5))}
+          disableScroll
+          isAnimated={false}
+          dataPointsColor={colors.brand}
+          dataPointsColor2={colors.warning}
+          dataPointsColor3={colors.critical}
+          dataPointsRadius={4}
+          yAxisThickness={0}
+          yAxisLabelWidth={26}
+          yAxisTextStyle={styles.chartAxis}
+          xAxisThickness={1}
+          xAxisColor={colors.border}
+          xAxisLabelsHeight={26}
+          xAxisLabelTextStyle={styles.chartAxis}
+          rulesColor={colors.border}
+          rulesThickness={1}
+          rulesLength={300}
+          backgroundColor={colors.white}
+          hideOrigin
+        />
+      </View>
+      <ChartLegend latest={latest} />
+    </View>
+  );
+}
+
+function ChartLegend({ latest }: { latest: ActivityChartData["latest"] }) {
+  return (
+    <View style={styles.chartLegend}>
+      <LegendItem label="AQI" value={latest.aqi !== null ? String(latest.aqi) : "--"} color={colors.brand} />
+      <LegendItem label="CO2" value={latest.co2 !== null ? `${latest.co2} ppm` : "--"} color={colors.warning} />
+      <LegendItem label="PM2.5" value={latest.pm25 !== null ? `${latest.pm25} ug/m3` : "--"} color={colors.critical} />
+    </View>
+  );
+}
+
+function LegendItem({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <View style={styles.legendItem}>
+      <View style={[styles.legendDot, { backgroundColor: color }]} />
+      <View>
+        <AppText style={styles.legendLabel}>{label}</AppText>
+        <AppText style={styles.legendValue}>{value}</AppText>
       </View>
     </View>
   );
@@ -822,6 +921,18 @@ type ConditionItem = {
   icon: AppIconName;
 };
 
+type ActivityChartData = {
+  aqi: lineDataItem[];
+  co2: lineDataItem[];
+  pm25: lineDataItem[];
+  hasEnoughData: boolean;
+  latest: {
+    aqi: number | null;
+    co2: number | null;
+    pm25: number | null;
+  };
+};
+
 function buildRecentEvents(activityLogs: ActivityLog[], rooms: Room[], alerts: Alert[]): RecentEvent[] {
   const sensorCategories = new Set(["demo", "alert", "reading", "device"]);
   return activityLogs
@@ -873,29 +984,112 @@ function buildActiveConditions(rooms: Room[], devices: Device[], alerts: Alert[]
   return { items, roomCount: roomItems.length };
 }
 
-function buildActivityPoints(readings: Reading[], status: SafetyStatus) {
-  const latest = readings.slice(0, 6);
-  const base = latest.length > 0 ? latest : [{ value: status === "critical" ? 82 : status === "warning" ? 58 : status === "offline" ? 35 : 18, status, createdAt: new Date().toISOString() } as Reading];
-  const ordered = [...base].reverse().slice(-6);
-  return ordered.map((reading, index) => {
-    const value = readingScore(reading, status);
-    return {
-      label: index === ordered.length - 1 ? "Now" : `${ordered.length - index - 1}h`,
-      value,
-      height: Math.max(22, Math.min(112, value + 18)),
-      color: statusColors[reading.status] ?? statusColors[status] ?? colors.brand,
-    };
+function buildActivityChart(readings: Reading[], status: SafetyStatus): ActivityChartData {
+  const sorted = [...readings].filter((reading) => Number.isFinite(Date.parse(reading.createdAt))).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  const buckets = groupReadingsByTimestamp(sorted).slice(-7);
+  const fallbackAqi = status === "critical" ? 86 : status === "warning" ? 58 : status === "offline" ? 35 : 18;
+  let lastCo2: number | null = null;
+  let lastPm25: number | null = null;
+
+  const aqi: lineDataItem[] = [];
+  const co2: lineDataItem[] = [];
+  const pm25: lineDataItem[] = [];
+
+  buckets.forEach((bucket, index) => {
+    const co2Reading = latestOfType(bucket.readings, "co2");
+    const smokeReading = latestOfType(bucket.readings, "smoke");
+    const humidityReading = latestOfType(bucket.readings, "humidity");
+    const temperatureReading = latestOfType(bucket.readings, "temperature");
+    if (co2Reading) lastCo2 = Math.round(co2Reading.value);
+    if (smokeReading) lastPm25 = Math.round(smokeReading.value);
+
+    const label = index === buckets.length - 1 ? "Now" : formatChartTime(bucket.createdAt);
+    const aqiValue = computeConditionScore({ co2: co2Reading, smoke: smokeReading, humidity: humidityReading, temperature: temperatureReading, status });
+    aqi.push({ label, value: aqiValue, dataPointText: index === buckets.length - 1 ? String(aqiValue) : undefined });
+    if (lastCo2 !== null) co2.push({ label, value: scaleCo2ForChart(lastCo2) });
+    if (lastPm25 !== null) pm25.push({ label, value: scalePm25ForChart(lastPm25) });
   });
+
+  if (aqi.length === 0) {
+    aqi.push({ label: "Now", value: fallbackAqi });
+  }
+
+  return {
+    aqi,
+    co2,
+    pm25,
+    hasEnoughData: aqi.length >= 2,
+    latest: {
+      aqi: Math.round(aqi[aqi.length - 1]?.value ?? fallbackAqi),
+      co2: lastCo2,
+      pm25: lastPm25,
+    },
+  };
 }
 
-function readingScore(reading: Reading, fallbackStatus: SafetyStatus) {
-  if (reading.type === "co2") return reading.value > 1100 ? 76 : reading.value > 800 ? 52 : 24;
-  if (reading.type === "smoke") return reading.value > 100 ? 92 : reading.value > 25 ? 58 : 18;
-  if (reading.type === "humidity") return reading.value > 65 ? 62 : 26;
-  if (reading.type === "temperature") return reading.value > 30 ? 58 : 24;
-  if (fallbackStatus === "critical") return 86;
-  if (fallbackStatus === "warning") return 58;
-  return 22;
+function groupReadingsByTimestamp(readings: Reading[]) {
+  const buckets: Array<{ key: string; createdAt: string; readings: Reading[] }> = [];
+  const bucketMap = new Map<string, { key: string; createdAt: string; readings: Reading[] }>();
+
+  for (const reading of readings) {
+    const date = new Date(reading.createdAt);
+    date.setMilliseconds(0);
+    const key = date.toISOString();
+    const existing = bucketMap.get(key);
+    if (existing) {
+      existing.readings.push(reading);
+    } else {
+      const bucket = { key, createdAt: reading.createdAt, readings: [reading] };
+      bucketMap.set(key, bucket);
+      buckets.push(bucket);
+    }
+  }
+
+  return buckets;
+}
+
+function latestOfType(readings: Reading[], type: Reading["type"]) {
+  return readings
+    .filter((reading) => reading.type === type)
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+}
+
+function computeConditionScore({
+  co2,
+  smoke,
+  humidity,
+  temperature,
+  status,
+}: {
+  co2?: Reading;
+  smoke?: Reading;
+  humidity?: Reading;
+  temperature?: Reading;
+  status: SafetyStatus;
+}) {
+  const co2Score = co2 ? (co2.value <= 700 ? 18 : co2.value <= 1100 ? 42 : co2.value <= 1800 ? 70 : 90) : 20;
+  const smokeScore = smoke ? (smoke.value <= 12 ? 12 : smoke.value <= 35 ? 38 : smoke.value <= 100 ? 76 : 96) : 12;
+  const humidityScore = humidity ? Math.min(72, Math.abs(humidity.value - 45) * 1.7) : 10;
+  const temperatureScore = temperature ? Math.min(68, Math.abs(temperature.value - 24) * 3) : 8;
+  const statusLift = status === "critical" ? 18 : status === "warning" ? 9 : status === "offline" ? 12 : 0;
+  return clampChartValue(co2Score * 0.4 + smokeScore * 0.36 + humidityScore * 0.14 + temperatureScore * 0.1 + statusLift);
+}
+
+function scaleCo2ForChart(value: number) {
+  if (value <= 0) return 0;
+  return clampChartValue((value / 2000) * 100);
+}
+
+function scalePm25ForChart(value: number) {
+  return clampChartValue((value / 300) * 100);
+}
+
+function clampChartValue(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function formatChartTime(value: string) {
+  return new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 function inferEventSeverity(item: ActivityLog, alert?: Alert): SafetyStatus {
@@ -985,10 +1179,6 @@ function metricTone(status: SafetyStatus): "neutral" | "good" | "warning" {
   if (status === "good") return "good";
   if (status === "warning" || status === "critical" || status === "offline") return "warning";
   return "neutral";
-}
-
-function formatConsoleDate(date: Date) {
-  return date.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 const styles = StyleSheet.create({
@@ -1157,19 +1347,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     minWidth: 300,
   },
-  headerTopLine: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  headerKicker: {
-    color: colors.brand,
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-    lineHeight: 16,
-    textTransform: "uppercase",
-  },
   statusBadge: {
     alignItems: "center",
     backgroundColor: colors.white,
@@ -1200,11 +1377,24 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 35,
   },
-  headerSubtitle: {
+  headerMetaRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+  },
+  headerMeta: {
     color: colors.textSecondary,
-    fontFamily: fonts.regular,
+    fontFamily: fonts.medium,
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 18,
+    maxWidth: 360,
+  },
+  headerMetaDot: {
+    color: colors.textMuted,
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    lineHeight: 18,
   },
   headerTools: {
     alignItems: "center",
@@ -1582,36 +1772,75 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
-  chartBars: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    gap: spacing.sm,
-    height: 154,
-    justifyContent: "space-between",
-  },
-  chartPoint: {
+  lineChartWrap: {
     alignItems: "center",
-    flex: 1,
-    gap: spacing.xs,
+    borderRadius: radius.md,
+    minHeight: 214,
+    overflow: "hidden",
+    paddingTop: spacing.sm,
   },
-  chartTrack: {
+  chartAxis: {
+    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 10,
+  },
+  chartEmpty: {
     alignItems: "center",
     backgroundColor: colors.surfaceSubtle,
-    borderRadius: radius.pill,
-    height: 122,
-    justifyContent: "flex-end",
-    overflow: "hidden",
-    width: "100%",
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.xs,
+    justifyContent: "center",
+    minHeight: 190,
+    padding: spacing.lg,
   },
-  chartBar: {
-    borderRadius: radius.pill,
-    width: "100%",
+  chartEmptyTitle: {
+    color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
   },
-  chartLabel: {
+  chartEmptyText: {
+    color: colors.textSecondary,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: "center",
+  },
+  chartLegend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  legendItem: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: 12,
+    flexDirection: "row",
+    gap: spacing.xs,
+    minHeight: 42,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  legendDot: {
+    borderRadius: radius.pill,
+    height: 9,
+    width: 9,
+  },
+  legendLabel: {
     color: colors.textMuted,
     fontFamily: fonts.medium,
     fontSize: 10,
     lineHeight: 14,
+    textTransform: "uppercase",
+  },
+  legendValue: {
+    color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    lineHeight: 16,
   },
   previewList: {
     gap: spacing.xs,

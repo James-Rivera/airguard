@@ -8,6 +8,12 @@ export async function getLatestReadings(homeId: string) {
   return dedupeLatest((data ?? []).map((row) => mapReading(row as ReadingRow)));
 }
 
+export async function getRecentReadingHistory(homeId: string) {
+  const { data, error } = await supabase.from("readings").select("*").eq("home_id", homeId).order("created_at", { ascending: false }).limit(160);
+  if (error) throw error;
+  return (data ?? []).map((row) => mapReading(row as ReadingRow));
+}
+
 export async function getReadingsByRoom(roomId: string) {
   const { data, error } = await supabase.from("readings").select("*").eq("room_id", roomId).order("created_at", { ascending: false }).limit(20);
   if (error) throw error;

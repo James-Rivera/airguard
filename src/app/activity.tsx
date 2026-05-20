@@ -16,7 +16,7 @@ export default function ActivityRoute() {
   return (
     <AppScreen title="Activity" subtitle="Recent home safety activity." onBack={() => router.back()} noBottomPadding refreshControl={refreshControl}>
       {state.activityLogs.length === 0 ? (
-        <EmptyState title="No activity yet" message="Create rooms, add devices, or run safety actions to build an activity history." />
+        <EmptyState title="No activity yet" message="Create rooms, add devices, or run safety actions to build an activity history." iconName="note" />
       ) : (
         state.activityLogs.map((item) => (
           <AppCard key={item.id} style={styles.item}>

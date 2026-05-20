@@ -19,6 +19,8 @@ export const routes = {
   addDevice: "/setup/add-device",
   homeSettings: "/settings/home",
   safetyChecklist: "/safety-checklist",
+  risks: "/risks",
+  reports: "/reports",
   simulator: "/simulator",
   activity: "/activity",
   roomDetail: (roomId: string) => `/rooms/${roomId}`,

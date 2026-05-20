@@ -18,6 +18,7 @@ Implemented:
 - readings
 - alerts
 - activity logs
+- computed risks, reports, and setup readiness screens
 - Figma-inspired mobile UI
 
 Simulated for now:
