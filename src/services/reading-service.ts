@@ -30,12 +30,13 @@ export async function insertReading(reading: {
   status: string;
   statusLabel?: string;
 }) {
+  const deviceId = await resolveReadingDeviceId(reading.homeId, reading.roomId, reading.deviceId);
   const { data, error } = await supabase
     .from("readings")
     .insert({
       home_id: reading.homeId,
       room_id: reading.roomId,
-      device_id: reading.deviceId ?? null,
+      device_id: deviceId,
       type: reading.type,
       value: reading.value,
       unit: reading.unit,
@@ -46,6 +47,24 @@ export async function insertReading(reading: {
     .single();
   if (error) throw error;
   return mapReading(data as ReadingRow);
+}
+
+async function resolveReadingDeviceId(homeId: string, roomId: string, deviceId?: string) {
+  if (!deviceId) return null;
+
+  const { data, error } = await supabase
+    .from("devices")
+    .select("id, home_id, room_id")
+    .eq("id", deviceId)
+    .eq("home_id", homeId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Selected device is not available for this home.");
+
+  const device = data as Pick<DeviceRow, "id" | "home_id" | "room_id">;
+  if (device.room_id !== roomId) throw new Error("Selected device is not assigned to this room.");
+
+  return device.id;
 }
 
 export async function simulateNormalReadings(homeId: string) {

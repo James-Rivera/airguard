@@ -24,12 +24,14 @@ Rooms belong to homes and include name, type, and safety status.
 
 Source of truth: `devices`.
 Devices belong to homes and optionally rooms. Physical pairing is simulated, but final devices are real records.
+Device setup must create or find the persisted device row first and use that real device id for any initial readings or activity that follows. Device removal deletes the real device record through normal RLS-protected client access.
 
 ## Reading
 
 Source of truth: `readings`.
 Readings belong to homes, rooms, and optionally devices. Values are simulated until hardware integration, but each generated value is a database record.
 The store keeps both latest deduped readings for current UI tiles and recent reading history for reports.
+When a reading includes a device id, the device must belong to the same home and room before the reading is inserted.
 
 ## Alert
 

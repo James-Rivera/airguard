@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { AlertCard } from "@/components/airguard/AlertCard";
@@ -15,10 +15,40 @@ import { colors, spacing } from "@/theme/index";
 export default function AlertDetailRoute() {
   const { alertId } = useLocalSearchParams<{ alertId: string }>();
   const { state, actions } = useAirGuard();
+  const [actionName, setActionName] = useState<"checking" | "resolving" | null>(null);
+  const [actionError, setActionError] = useState("");
   const alert = getAlertById(state, alertId);
 
   if (!alert) {
     return <AppScreen title="Alert Detail" subtitle="Alert not found" onBack={() => router.back()} noBottomPadding>{null}</AppScreen>;
+  }
+
+  async function startChecking() {
+    if (actionName || !alert) return;
+    setActionError("");
+    setActionName("checking");
+    try {
+      await actions.startCheckingAlert(alert.id);
+    } catch (err) {
+      console.warn("[AirGuard] Start checking alert failed", err);
+      setActionError("Alert could not be updated. Please try again.");
+    } finally {
+      setActionName(null);
+    }
+  }
+
+  async function resolveAlert() {
+    if (actionName || !alert) return;
+    setActionError("");
+    setActionName("resolving");
+    try {
+      await actions.resolveAlert(alert.id);
+    } catch (err) {
+      console.warn("[AirGuard] Resolve alert failed", err);
+      setActionError("Alert could not be resolved. Please try again.");
+    } finally {
+      setActionName(null);
+    }
   }
 
   return (
@@ -30,10 +60,23 @@ export default function AlertDetailRoute() {
       </AppCard>
       {alert.status !== "resolved" ? (
         <View style={styles.actions}>
-          <AppButton label={alert.status === "checking" ? "Checking" : "Start Checking"} onPress={() => actions.startCheckingAlert(alert.id)} variant={alert.severity === "critical" ? "danger" : "primary"} style={styles.actionButton} disabled={alert.status === "checking"} />
-          <AppButton label="Resolve" onPress={() => actions.resolveAlert(alert.id)} variant="secondary" style={styles.actionButton} />
+          <AppButton
+            label={actionName === "checking" ? "Starting Check" : alert.status === "checking" ? "Checking" : "Start Checking"}
+            onPress={startChecking}
+            variant={alert.severity === "critical" ? "danger" : "primary"}
+            style={styles.actionButton}
+            disabled={alert.status === "checking" || Boolean(actionName)}
+          />
+          <AppButton
+            label={actionName === "resolving" ? "Resolving" : "Resolve"}
+            onPress={resolveAlert}
+            variant="secondary"
+            style={styles.actionButton}
+            disabled={Boolean(actionName)}
+          />
         </View>
       ) : null}
+      {actionError ? <AppText style={styles.error}>{actionError}</AppText> : null}
       <SectionHeader title="Related Devices" />
       {getDevicesByRoomId(state, alert.roomId).map((device) => (
         <DeviceCard key={device.id} device={device} reading={getLatestReadingForDevice(state, device.id)} onPress={() => router.push(routes.deviceDetail(device.id))} />
@@ -64,5 +107,11 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+  error: {
+    color: colors.critical,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18,
   },
 });

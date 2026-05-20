@@ -45,5 +45,6 @@ Home creation uses the `public.create_home_for_current_user(home_name, address_l
 ## Reading/Alert Database Writes
 
 Scenario controls insert real `readings` rows, update room/device status where appropriate, create warning or critical `alerts`, resolve active alerts for reset-to-normal, and create related `activity_logs`.
+Device setup writes the device record first, waits for the inserted row/id, then inserts any initial reading with that persisted device id and creates related activity. Reading inserts that include a device id should verify the device belongs to the same home and room before writing.
 
 No dedicated `scenario_runs`, `notifications`, `reports`, or `alert_events` tables are required for the current MVP scenario engine.

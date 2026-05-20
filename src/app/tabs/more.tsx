@@ -15,7 +15,7 @@ import { colors, fonts, radius, spacing } from "@/theme/index";
 export default function MoreRoute() {
   const { user, session, signOut } = useSession();
   const safeUser = user ?? { name: "AirGuard User", role: "homeowner" as const };
-  const canUseOperations = Boolean(user || session?.isDemo);
+  const canUseOperations = process.env.EXPO_OS === "web" && Boolean(user || session?.isDemo);
 
   async function logout() {
     await signOut();

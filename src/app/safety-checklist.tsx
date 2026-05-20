@@ -100,7 +100,7 @@ export default function SafetyChecklistRoute() {
 
   return (
     <AppScreen refreshControl={refreshControl} contentStyle={styles.content}>
-      <DetailTopBar title="Safety Checklist" onBack={() => router.back()} actionIcon="checklist" />
+      <DetailTopBar title="Safety Checklist" onBack={() => router.back()} />
       <ReadinessSummary percent={percent} status={readinessStatus} completeCount={completeCount} totalCount={items.length} warningCount={warningCount} />
       <ChecklistSection title="Setup Readiness" icon="checklist" items={setupItems} />
       <ChecklistSection title="Safety Review" icon="shield" items={reviewItems} />

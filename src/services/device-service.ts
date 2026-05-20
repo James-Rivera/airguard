@@ -92,6 +92,11 @@ export async function updateDeviceSafetyStatus(deviceId: string, safetyStatus: s
   return mapDevice(data as DeviceRow);
 }
 
+export async function removeDevice(deviceId: string) {
+  const { error } = await supabase.from("devices").delete().eq("id", deviceId);
+  if (error) throw error;
+}
+
 function normalizeName(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }

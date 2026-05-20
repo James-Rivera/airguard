@@ -9,6 +9,8 @@ import { AppText } from "@/components/ui/AppText";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { Device, Reading, SafetyStatus } from "@/domain/models";
 import { getActiveAlerts, getDeviceById, getReadingsByDeviceId, getRoomById } from "@/domain/selectors";
+import { useHomeDataRefresh } from "@/hooks/useHomeDataRefresh";
+import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { colors, fonts, layout, radius, shadows, spacing, statusColors } from "@/theme/index";
 
@@ -21,10 +23,14 @@ const readingTiles: Array<{ type: Reading["type"]; label: string; icon: AppIconN
 
 export default function DeviceDetailRoute() {
   const { deviceId } = useLocalSearchParams<{ deviceId: string }>();
-  const { state } = useAirGuard();
+  const { state, actions } = useAirGuard();
   const insets = useSafeAreaInsets();
+  const refreshControl = useHomeDataRefresh();
   const { width } = useWindowDimensions();
   const [actionMessage, setActionMessage] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [isRestarting, setIsRestarting] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
   const device = getDeviceById(state, deviceId);
   const room = device ? getRoomById(state, device.roomId) : undefined;
   const readings = device ? getReadingsByDeviceId(state, device.id) : [];
@@ -36,17 +42,47 @@ export default function DeviceDetailRoute() {
   const cardWidth = Math.floor((contentWidth - spacing.md) / 2);
   const trendData = useMemo(() => buildAirQualityTrendData(readings, room?.status ?? "good"), [readings, room?.status]);
 
-  function restartDevice() {
-    setActionMessage(`${title} restart was queued for this sensor profile.`);
+  async function restartDevice() {
+    if (!device || isRestarting || isRemoving) return;
+    setActionError("");
+    setActionMessage("");
+    setIsRestarting(true);
+    try {
+      await actions.restartDevice(device.id);
+      setActionMessage(`${device.name} restarted and returned to monitoring.`);
+    } catch (err) {
+      console.warn("[AirGuard] Restart device failed", err);
+      setActionError("Device could not be restarted. Please try again.");
+    } finally {
+      setIsRestarting(false);
+    }
+  }
+
+  async function removeCurrentDevice() {
+    if (!device || isRemoving) return;
+    setActionError("");
+    setActionMessage("");
+    setIsRemoving(true);
+    try {
+      await actions.removeDevice(device.id);
+      router.replace(routes.devices);
+    } catch (err) {
+      console.warn("[AirGuard] Remove device failed", err);
+      setActionError("Device could not be removed. Please try again.");
+      setIsRemoving(false);
+    }
   }
 
   function confirmRemoveDevice() {
-    NativeAlert.alert("Remove device?", `${title} will stop contributing readings after a backend removal flow is connected.`, [
+    if (isRestarting || isRemoving) return;
+    NativeAlert.alert("Remove device?", `${title} will stop contributing readings for this home.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Remove Device",
         style: "destructive",
-        onPress: () => setActionMessage("Device removal needs a backend delete flow before it can change real data."),
+        onPress: () => {
+          void removeCurrentDevice();
+        },
       },
     ]);
   }
@@ -68,6 +104,7 @@ export default function DeviceDetailRoute() {
       <ScrollView
         style={styles.screen}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
+        refreshControl={refreshControl}
         showsVerticalScrollIndicator={false}
       >
         <DeviceStatusCard device={device} title={room ? `${room.name} monitoring` : title} status={deviceStatus} />
@@ -109,17 +146,28 @@ export default function DeviceDetailRoute() {
 
         <View style={styles.sectionBlock}>
           <AppText style={styles.sectionTitle}>Device Actions</AppText>
-          <Pressable style={styles.restartAction} onPress={restartDevice} accessibilityRole="button">
+          <Pressable
+            style={[styles.restartAction, (isRestarting || isRemoving) && styles.actionDisabled]}
+            onPress={restartDevice}
+            disabled={isRestarting || isRemoving}
+            accessibilityRole="button"
+          >
             <View style={styles.actionLeft}>
               <AppIcon name="power" size={18} color={colors.textPrimary} secondaryColor={colors.brand} />
-              <AppText style={styles.restartText}>Restart Device</AppText>
+              <AppText style={styles.restartText}>{isRestarting ? "Restarting Device" : "Restart Device"}</AppText>
             </View>
             <AppIcon name="chevron-right" size={20} color={colors.textPrimary} secondaryColor={colors.textPrimary} />
           </Pressable>
-          <Pressable style={styles.removeAction} onPress={confirmRemoveDevice} accessibilityRole="button">
+          <Pressable
+            style={[styles.removeAction, (isRestarting || isRemoving) && styles.actionDisabled]}
+            onPress={confirmRemoveDevice}
+            disabled={isRestarting || isRemoving}
+            accessibilityRole="button"
+          >
             <AppIcon name="logout" size={18} color="#93000A" secondaryColor="#93000A" />
-            <AppText style={styles.removeText}>Remove Device</AppText>
+            <AppText style={styles.removeText}>{isRemoving ? "Removing Device" : "Remove Device"}</AppText>
           </Pressable>
+          {actionError ? <AppText style={styles.actionError}>{actionError}</AppText> : null}
           {actionMessage ? <AppText style={styles.actionMessage}>{actionMessage}</AppText> : null}
         </View>
       </ScrollView>
@@ -136,9 +184,6 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
         </Pressable>
         <AppText style={styles.headerTitle} numberOfLines={1}>{title}</AppText>
       </View>
-      <Pressable style={styles.headerIconButton} accessibilityRole="button" accessibilityLabel="Device settings">
-        <AppIcon name="settings" size={22} color={colors.textPrimary} secondaryColor={colors.textPrimary} />
-      </Pressable>
     </View>
   );
 }
@@ -495,6 +540,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 16,
     lineHeight: 24,
+  },
+  actionDisabled: {
+    opacity: 0.55,
+  },
+  actionError: {
+    color: colors.critical,
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    lineHeight: 18,
   },
   actionMessage: {
     color: colors.textSecondary,

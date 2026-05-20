@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { AirGuardData, DeviceType, Home, Room, User } from "@/domain/models";
+import type { AirGuardData, Device, DeviceType, Home, Room, User } from "@/domain/models";
 import type { DemoScenarioType, ScenarioRunResult, ScenarioTargetInput } from "@/domain/scenarios";
 import { demoDevices, demoRooms } from "@/domain/seed";
 import * as activityService from "@/services/activity-service";
@@ -31,7 +31,9 @@ type StoreActions = {
   updateHome: (name: string, address?: string) => Promise<void>;
   startDevicePairing: (type?: DeviceType, roomId?: string) => Promise<void>;
   finishDevicePairing: () => Promise<void>;
-  addDevice: (name: string, type?: DeviceType, roomId?: string) => Promise<void>;
+  addDevice: (name: string, type?: DeviceType, roomId?: string) => Promise<Device>;
+  restartDevice: (deviceId: string) => Promise<void>;
+  removeDevice: (deviceId: string) => Promise<void>;
   toggleDeviceStatus: (deviceId: string) => Promise<void>;
   runDemoScenario: (type: DemoScenarioType, target?: ScenarioTargetInput) => Promise<ScenarioRunResult>;
   simulateNormalReadings: () => Promise<void>;
@@ -305,7 +307,7 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
         setState((current) => ({ ...current, pairingDraft: { ...current.pairingDraft, foundDeviceName: "AirGuard Sensor" } }));
       },
       async addDevice(name, type, roomId) {
-        await run(async () => {
+        return run(async () => {
           if (!state.home) throw new Error("Create a home before adding devices.");
           const targetRoomId = roomId ?? state.pairingDraft.roomId ?? state.rooms[0]?.id;
           if (!targetRoomId) throw new Error("Add a room before adding a sensor profile.");
@@ -322,6 +324,27 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
             await activityService.createActivityLog(state.home.id, "device", "Device added", `${result.device.name} was added to ${room?.name ?? "a room"}.`);
           }
           setState((current) => ({ ...current, pairingDraft: {} }));
+          await loadHomeDataFor(state.home);
+          return result.device;
+        });
+      },
+      async restartDevice(deviceId) {
+        await run(async () => {
+          if (!state.home) throw new Error("Create a home before managing devices.");
+          const device = state.devices.find((item) => item.id === deviceId);
+          if (!device) throw new Error("Selected device is not available for this home.");
+          await scenarioService.runDemoScenario(state.home.id, "reset-to-normal", { roomId: device.roomId, deviceId });
+          await activityService.createActivityLog(state.home.id, "device", "Device restarted", `${device.name} was restarted and returned to monitoring.`);
+          await loadHomeDataFor(state.home);
+        });
+      },
+      async removeDevice(deviceId) {
+        await run(async () => {
+          if (!state.home) throw new Error("Create a home before managing devices.");
+          const device = state.devices.find((item) => item.id === deviceId);
+          if (!device) throw new Error("Selected device is not available for this home.");
+          await deviceService.removeDevice(device.id);
+          await activityService.createActivityLog(state.home.id, "device", "Device removed", `${device.name} was removed from monitoring.`);
           await loadHomeDataFor(state.home);
         });
       },
