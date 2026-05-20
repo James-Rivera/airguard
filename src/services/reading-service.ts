@@ -30,6 +30,7 @@ export async function insertReading(reading: {
   status: string;
   statusLabel?: string;
 }) {
+  await assertReadingRoom(reading.homeId, reading.roomId);
   const deviceId = await resolveReadingDeviceId(reading.homeId, reading.roomId, reading.deviceId);
   const { data, error } = await supabase
     .from("readings")
@@ -47,6 +48,17 @@ export async function insertReading(reading: {
     .single();
   if (error) throw error;
   return mapReading(data as ReadingRow);
+}
+
+async function assertReadingRoom(homeId: string, roomId: string) {
+  const { data, error } = await supabase
+    .from("rooms")
+    .select("id, home_id")
+    .eq("id", roomId)
+    .eq("home_id", homeId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Selected room is not available for this home.");
 }
 
 async function resolveReadingDeviceId(homeId: string, roomId: string, deviceId?: string) {

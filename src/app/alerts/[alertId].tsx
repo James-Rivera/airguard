@@ -7,7 +7,9 @@ import { AppCard } from "@/components/ui/AppCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppScreen, SectionHeader } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { getAlertById, getDevicesByRoomId, getLatestReadingForDevice } from "@/domain/selectors";
+import { useHomeDataRefresh } from "@/hooks/useHomeDataRefresh";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { colors, spacing } from "@/theme/index";
@@ -15,12 +17,18 @@ import { colors, spacing } from "@/theme/index";
 export default function AlertDetailRoute() {
   const { alertId } = useLocalSearchParams<{ alertId: string }>();
   const { state, actions } = useAirGuard();
+  const refreshControl = useHomeDataRefresh();
   const [actionName, setActionName] = useState<"checking" | "resolving" | null>(null);
   const [actionError, setActionError] = useState("");
   const alert = getAlertById(state, alertId);
+  const relatedDevices = alert ? getDevicesByRoomId(state, alert.roomId) : [];
 
   if (!alert) {
-    return <AppScreen title="Alert Detail" subtitle="Alert not found" onBack={() => router.back()} noBottomPadding>{null}</AppScreen>;
+    return (
+      <AppScreen title="Alert Detail" subtitle="Alert not found" onBack={() => router.back()} noBottomPadding refreshControl={refreshControl}>
+        <EmptyState title="Alert not found" message="Go back to alerts and choose another safety event." iconName="alert" actionLabel="View Alerts" onAction={() => router.replace(routes.alerts)} />
+      </AppScreen>
+    );
   }
 
   async function startChecking() {
@@ -52,7 +60,7 @@ export default function AlertDetailRoute() {
   }
 
   return (
-    <AppScreen title="Alert Detail" subtitle={alert.roomName} onBack={() => router.back()} noBottomPadding>
+    <AppScreen title="Alert Detail" subtitle={alert.roomName} onBack={() => router.back()} noBottomPadding refreshControl={refreshControl}>
       <AlertCard alert={alert} />
       <AppCard style={styles.actionCard}>
         <AppText style={styles.label}>Recommended Action</AppText>
@@ -78,7 +86,10 @@ export default function AlertDetailRoute() {
       ) : null}
       {actionError ? <AppText style={styles.error}>{actionError}</AppText> : null}
       <SectionHeader title="Related Devices" />
-      {getDevicesByRoomId(state, alert.roomId).map((device) => (
+      {relatedDevices.length === 0 ? (
+        <EmptyState title="No related devices" message="This alert is linked to the room, but no device is currently assigned there." iconName="sensor" />
+      ) : null}
+      {relatedDevices.map((device) => (
         <DeviceCard key={device.id} device={device} reading={getLatestReadingForDevice(state, device.id)} onPress={() => router.push(routes.deviceDetail(device.id))} />
       ))}
     </AppScreen>

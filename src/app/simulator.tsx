@@ -113,6 +113,14 @@ export default function SensorSimulatorRoute() {
     if (runningType) return;
     const meta = getDemoScenarioMeta(type);
     setSelected(type);
+    if (!selectedRoom) {
+      setNotice({ kind: "error", title: "Select a room before applying this sensor event." });
+      return;
+    }
+    if (type === "sensor-offline" && !selectedDevice) {
+      setNotice({ kind: "error", title: "Select a device before applying the sensor offline event." });
+      return;
+    }
     setNotice(null);
     setRunningType(type);
     try {
@@ -268,7 +276,7 @@ export default function SensorSimulatorRoute() {
                         targetDevice={selectedDevice}
                         selected={selected === scenario.type}
                         isRunning={runningType === scenario.type}
-                        disabled={Boolean(runningType)}
+                        disabled={Boolean(runningType) || !selectedRoom || (scenario.type === "sensor-offline" && !selectedDevice)}
                         onSelect={() => setSelected(scenario.type)}
                         onApply={() => runEvent(scenario.type)}
                       />
@@ -594,6 +602,9 @@ function EventCard({
   onSelect: () => void;
   onApply: () => void;
 }) {
+  const missingDevice = scenario.type === "sensor-offline" && !targetDevice;
+  const actionLabel = !targetRoom ? "Select Room" : missingDevice ? "Select Device" : isRunning ? "Applying" : actionLabels[scenario.type];
+
   return (
     <View style={[styles.eventCard, selected && styles.eventCardSelected]}>
       <Pressable onPress={onSelect} style={styles.eventHitArea} accessibilityRole="button" accessibilityState={{ selected }}>
@@ -621,7 +632,7 @@ function EventCard({
         </View>
       </Pressable>
       <AppButton
-        label={isRunning ? "Applying" : actionLabels[scenario.type]}
+        label={actionLabel}
         onPress={onApply}
         disabled={disabled}
         variant={scenario.severity === "critical" ? "danger" : "primary"}

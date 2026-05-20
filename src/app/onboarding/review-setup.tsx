@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { OnboardingStepLayout } from "@/components/airguard/OnboardingStepLayout";
@@ -12,9 +12,15 @@ import { colors, fonts, spacing } from "@/theme/index";
 
 export default function ReviewSetupRoute() {
   const { state, actions, error, isLoading } = useAirGuard();
-  const sensorType = state.pairingDraft.type;
-  const roomName = state.pairingDraft.roomName ?? state.rooms.find((room) => room.id === state.pairingDraft.roomId)?.name;
-  const ready = Boolean(state.home && roomName && sensorType);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const existingRoom = state.rooms[0];
+  const existingDevice = state.devices[0];
+  const draftRoomName = state.pairingDraft.roomName ?? state.rooms.find((room) => room.id === state.pairingDraft.roomId)?.name;
+  const sensorType = state.pairingDraft.type ?? existingDevice?.type;
+  const roomName = draftRoomName ?? existingRoom?.name;
+  const hasDraftSetup = Boolean(state.pairingDraft.type && draftRoomName);
+  const hasExistingSetup = Boolean(state.home && state.rooms.length > 0 && state.devices.length > 0);
+  const ready = Boolean(state.home && ((roomName && sensorType && hasDraftSetup) || hasExistingSetup));
 
   useEffect(() => {
     if (isLoading) return;
@@ -24,8 +30,18 @@ export default function ReviewSetupRoute() {
   }, [isLoading, state]);
 
   async function finish() {
-    await actions.completeOnboardingSetup();
-    router.replace(routes.home);
+    if (!ready || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (hasDraftSetup) {
+        await actions.completeOnboardingSetup();
+      } else {
+        await actions.completeOnboarding();
+      }
+      router.replace(routes.home);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -34,8 +50,8 @@ export default function ReviewSetupRoute() {
       totalSteps={5}
       title="Review setup"
       subtitle="Everything looks good"
-      primaryLabel="Start Monitoring"
-      primaryDisabled={!ready}
+      primaryLabel={isSubmitting ? "Starting" : "Start Monitoring"}
+      primaryDisabled={!ready || isSubmitting}
       onPrimaryPress={finish}
       onBack={() => router.back()}
       centered

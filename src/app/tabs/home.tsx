@@ -61,7 +61,11 @@ export default function HomeRoute() {
           </LinearGradient>
         </Pressable>
       </View>
-      <SafetyStatusCard status={summary.status === "critical" ? "critical" : "good"} onAction={() => router.push(primaryAlert ? routes.alertDetail(primaryAlert.id) : routes.rooms)} />
+      <SafetyStatusCard
+        status={summary.status}
+        alert={primaryAlert}
+        onAction={() => router.push(primaryAlert ? routes.alertDetail(primaryAlert.id) : summary.status === "offline" ? routes.devices : routes.rooms)}
+      />
       <SectionHeader title="Live Readings" />
       <View style={[styles.grid, { columnGap: readingGap, rowGap: readingGap }]}>
         {dashboardReadingTypes.map((item) => (

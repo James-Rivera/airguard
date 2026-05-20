@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -45,6 +45,11 @@ export default function AddDeviceRoute() {
   const selectedType = useMemo(() => deviceTypes.find((item) => item.value === type) ?? deviceTypes[0], [type]);
   const selectedRoom = useMemo(() => state.rooms.find((room) => room.id === roomId), [roomId, state.rooms]);
   const suggestedName = defaultDeviceName(selectedRoom, selectedType);
+
+  useEffect(() => {
+    if (roomId && state.rooms.some((room) => room.id === roomId)) return;
+    setRoomId(state.rooms[0]?.id ?? "");
+  }, [roomId, state.rooms]);
 
   async function submit() {
     if (!roomId || isSubmitting) return;

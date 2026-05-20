@@ -4,22 +4,27 @@ import { LinearGradient } from "expo-linear-gradient";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { AppText } from "@/components/ui/AppText";
-import { colors, fonts, gradient, radius, shadows, spacing } from "@/theme/index";
+import type { Alert, SafetyStatus } from "@/domain/models";
+import { colors, fonts, gradient, radius, shadows, spacing, statusColors } from "@/theme/index";
 
-export function SafetyStatusCard({ status, onAction }: { status: "good" | "critical"; onAction: () => void }) {
-  const critical = status === "critical";
-  if (critical) {
+export function SafetyStatusCard({ status, alert, onAction }: { status: SafetyStatus; alert?: Alert; onAction: () => void }) {
+  if (status !== "good") {
+    const critical = status === "critical";
+    const offline = status === "offline";
+    const tone = statusColors[status] ?? colors.warning;
+    const title = alert?.title ?? (offline ? "Sensor connection needs attention" : "Air quality needs attention");
+    const body = alert?.recommendedAction ?? alert?.message ?? (offline ? "Check offline devices before relying on this home status." : "Review rooms and readings that are outside the safe range.");
     return (
-      <View style={[styles.card, styles.critical]}>
+      <View style={[styles.card, styles.issueCard, critical && styles.critical, offline && styles.offline]}>
         <View style={styles.top}>
-          <View style={styles.alertIcon}>
-            <AppText style={styles.alertText}>!</AppText>
+          <View style={[styles.alertIcon, { backgroundColor: tone }]}>
+            <AppIcon name={offline ? "sensor" : "alert"} size={22} color={colors.white} secondaryColor={colors.white} />
           </View>
-          <AppText style={styles.criticalPill}>Critical</AppText>
+          <AppText style={[styles.criticalPill, { color: tone }]}>{statusLabel(status)}</AppText>
         </View>
-        <AppText style={styles.criticalTitle}>Kitchen needs attention</AppText>
-        <AppText style={styles.criticalBody}>Smoke detected. Check the kitchen and turn on ventilation.</AppText>
-        <AppButton label="Open Alert" onPress={onAction} variant="danger" />
+        <AppText style={styles.criticalTitle}>{title}</AppText>
+        <AppText style={styles.criticalBody}>{body}</AppText>
+        <AppButton label={alert ? "Open Alert" : offline ? "View Devices" : "Review Rooms"} onPress={onAction} variant={critical ? "danger" : "primary"} />
       </View>
     );
   }
@@ -44,6 +49,13 @@ export function SafetyStatusCard({ status, onAction }: { status: "good" | "criti
   );
 }
 
+function statusLabel(status: SafetyStatus) {
+  if (status === "critical") return "Critical";
+  if (status === "warning") return "Warning";
+  if (status === "offline") return "Offline";
+  return "Good";
+}
+
 const styles = StyleSheet.create({
   card: {
     borderRadius: radius.card,
@@ -57,6 +69,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.criticalSurface,
     borderColor: colors.borderDanger,
     borderWidth: 1,
+  },
+  issueCard: {
+    backgroundColor: colors.warningSurface,
+    borderColor: colors.warning,
+    borderWidth: 1,
+  },
+  offline: {
+    backgroundColor: colors.offlineSurface,
+    borderColor: colors.borderStrong,
   },
   top: {
     alignItems: "center",
@@ -123,11 +144,6 @@ const styles = StyleSheet.create({
     height: 42,
     justifyContent: "center",
     width: 42,
-  },
-  alertText: {
-    color: colors.white,
-    fontSize: 24,
-    fontWeight: "700",
   },
   criticalPill: {
     color: colors.critical,

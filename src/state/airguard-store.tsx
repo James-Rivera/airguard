@@ -106,7 +106,6 @@ export function AirGuardProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function loadHomeDataFor(home: Home, profile = state.currentUser, onboardingComplete = state.onboardingComplete, homes = state.homes) {
-    await deviceService.removeExactDuplicateDevices(home.id);
     const [rooms, devices, readings, readingHistory, alerts, activityLogs] = await Promise.all([
       roomService.getRooms(home.id),
       deviceService.getDevices(home.id),

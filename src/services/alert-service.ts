@@ -46,6 +46,7 @@ export async function triggerKitchenSmokeAlert(homeId: string) {
 }
 
 export async function createAlert(alert: AlertInput, roomName?: string) {
+  const targetRoomName = await assertAlertTarget(alert.homeId, alert.roomId, alert.deviceId);
   const { data, error } = await supabase
     .from("alerts")
     .insert({
@@ -61,7 +62,33 @@ export async function createAlert(alert: AlertInput, roomName?: string) {
     .select("*")
     .single();
   if (error) throw error;
-  return mapAlert(data as AlertRow, roomName);
+  return mapAlert(data as AlertRow, roomName ?? targetRoomName);
+}
+
+async function assertAlertTarget(homeId: string, roomId: string, deviceId?: string) {
+  const { data: roomData, error: roomError } = await supabase
+    .from("rooms")
+    .select("id, home_id, name")
+    .eq("id", roomId)
+    .eq("home_id", homeId)
+    .maybeSingle();
+  if (roomError) throw roomError;
+  if (!roomData) throw new Error("Selected room is not available for this home.");
+
+  if (deviceId) {
+    const { data: deviceData, error: deviceError } = await supabase
+      .from("devices")
+      .select("id, home_id, room_id")
+      .eq("id", deviceId)
+      .eq("home_id", homeId)
+      .maybeSingle();
+    if (deviceError) throw deviceError;
+    if (!deviceData) throw new Error("Selected device is not available for this home.");
+    const device = deviceData as Pick<DeviceRow, "id" | "home_id" | "room_id">;
+    if (device.room_id !== roomId) throw new Error("Selected device is not assigned to this room.");
+  }
+
+  return (roomData as Pick<RoomRow, "name">).name;
 }
 
 export async function startCheckingAlert(alertId: string) {
