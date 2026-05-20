@@ -50,7 +50,7 @@ Use pill badges for safety and workflow states. Map good/warning/critical/offlin
 ## Bottom Navigation
 
 Use the existing consistent bottom tab navigation. Preserve predictable access to Home, Rooms, Alerts, Devices, and More.
-The bottom navigation uses a safe-area-aware floating rounded pill with real SVG icons, not letter placeholders. The shell is 72px tall, the active tab gets a wider soft-blue pill, and inactive tabs stay compact with muted blue-gray labels. Screen content must reserve enough bottom padding so cards never hide behind the tab bar.
+The bottom navigation uses a safe-area-aware rounded pill with real SVG icons, not letter placeholders. The tab bar owns an 88px transparent region with a centered 72px shell, the active tab gets a fixed-height wider soft-blue pill, and inactive tabs stay compact with muted blue-gray labels. Screen content should keep breathing room above the tab area without reserving a second full nav height.
 
 ## Dashboard
 

@@ -18,6 +18,7 @@ export default function AlertsRoute() {
   const { state } = useAirGuard();
   const alerts = state.alerts;
   const shown = useMemo(() => getAlertsByFilter(state, filter), [state, filter]);
+  const emptyCopy = getEmptyCopy(filter, alerts.length);
 
   return (
     <AppScreen title="Alerts">
@@ -30,7 +31,9 @@ export default function AlertsRoute() {
           <FilterPill key={item} label={item} active={filter === item} onPress={() => setFilter(item)} />
         ))}
       </View>
-      {shown.length === 0 ? <EmptyState title="No alerts here" message="AirGuard will show safety events here when a room needs attention." /> : null}
+      {shown.length === 0 ? (
+        <EmptyState title={emptyCopy.title} message={emptyCopy.message} iconName="shield" />
+      ) : null}
       {shown.map((alert) => (
         <AlertCard
           key={alert.id}
@@ -42,6 +45,31 @@ export default function AlertsRoute() {
       ))}
     </AppScreen>
   );
+}
+
+function getEmptyCopy(filter: Filter, alertCount: number) {
+  if (alertCount === 0 || filter === "Active") {
+    return {
+      title: "No active alerts",
+      message: "AirGuard will show safety events here when a room needs attention.",
+    };
+  }
+  if (filter === "Critical") {
+    return {
+      title: "No critical alerts",
+      message: "Critical safety events will appear here when immediate attention is needed.",
+    };
+  }
+  if (filter === "Resolved") {
+    return {
+      title: "No resolved alerts",
+      message: "Resolved safety events will appear here after someone checks and clears them.",
+    };
+  }
+  return {
+    title: "No active alerts",
+    message: "AirGuard will show safety events here when a room needs attention.",
+  };
 }
 
 const styles = StyleSheet.create({

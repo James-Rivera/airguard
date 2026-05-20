@@ -26,6 +26,20 @@ export async function createHome(name: string, addressLabel?: string) {
   return mapHome(data as HomeRow);
 }
 
+export async function updateHome(homeId: string, fields: { name: string; address?: string }) {
+  const { data, error } = await supabase
+    .from("homes")
+    .update({
+      name: fields.name.trim(),
+      address_label: fields.address?.trim() || null,
+    })
+    .eq("id", homeId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return mapHome(data as HomeRow);
+}
+
 export async function getActiveHomeWithMembership() {
   const homes = await getHomesForCurrentUser();
   return homes[0] ?? null;

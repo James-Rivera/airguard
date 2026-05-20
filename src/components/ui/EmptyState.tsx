@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import { AppButton } from "./AppButton";
 import { AppCard } from "./AppCard";
-import { AppIcon } from "./AppIcon";
+import { AppIcon, type AppIconName } from "./AppIcon";
 import { AppText } from "./AppText";
 import { colors, radius, spacing } from "@/theme/index";
 
@@ -11,14 +11,15 @@ type Props = {
   message: string;
   actionLabel?: string;
   onAction?: () => void;
+  iconName?: AppIconName;
   style?: ViewStyle;
 };
 
-export function EmptyState({ title, message, actionLabel, onAction, style }: Props) {
+export function EmptyState({ title, message, actionLabel, onAction, iconName = "plus", style }: Props) {
   return (
     <AppCard style={[styles.card, style]}>
       <View style={styles.icon}>
-        <AppIcon name="plus" size={22} color={colors.brand} secondaryColor={colors.brand} />
+        <AppIcon name={iconName} size={22} color={colors.brand} secondaryColor={colors.brand} />
       </View>
       <View style={styles.copy}>
         <AppText style={styles.title}>{title}</AppText>

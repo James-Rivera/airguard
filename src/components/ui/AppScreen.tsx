@@ -1,6 +1,6 @@
 import React from "react";
 import { KeyboardAvoidingView, ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "./AppText";
 import { IconButton } from "./IconButton";
 import { colors, fonts, layout, spacing } from "@/theme/index";
@@ -22,12 +22,15 @@ export function AppScreen({
   contentStyle?: ViewStyle;
   headerAction?: React.ReactNode;
 }) {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = (noBottomPadding ? spacing.xxl : layout.bottomNavPadding) + insets.bottom;
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <KeyboardAvoidingView style={styles.keyboard} behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined}>
         <ScrollView
           style={styles.screen}
-          contentContainerStyle={[styles.content, noBottomPadding ? styles.noBottom : styles.withTabs, contentStyle]}
+          contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }, contentStyle]}
           contentInsetAdjustmentBehavior="automatic"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -77,12 +80,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.screenPadding,
     paddingTop: spacing.xs,
     width: "100%",
-  },
-  withTabs: {
-    paddingBottom: layout.bottomNavPadding,
-  },
-  noBottom: {
-    paddingBottom: spacing.xxl,
   },
   header: {
     alignItems: "center",

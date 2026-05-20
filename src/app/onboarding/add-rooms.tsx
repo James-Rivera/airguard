@@ -135,6 +135,8 @@ function roomToOption(room: Room): RoomOption {
   if (room.icon === "kitchen") return { key: `room-${room.id}`, id: room.id, name: room.name, icon: "kitchen" };
   if (room.icon === "bathroom") return { key: `room-${room.id}`, id: room.id, name: room.name, icon: "bathroom" };
   if (room.icon === "dining-room") return { key: `room-${room.id}`, id: room.id, name: room.name, icon: "dining-room" };
+  if (room.icon === "office") return { key: `room-${room.id}`, id: room.id, name: room.name, icon: "office" };
+  if (room.icon === "nursery") return { key: `room-${room.id}`, id: room.id, name: room.name, icon: "nursery" };
   return { key: `room-${room.id}`, id: room.id, name: room.name, icon: "living-room" };
 }
 

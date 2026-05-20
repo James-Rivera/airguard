@@ -2,6 +2,7 @@ export const routes = {
   welcome: "/",
   login: "/auth/login",
   createAccount: "/auth/create-account",
+  verifyCode: "/auth/verify-code",
   onboarding: "/onboarding",
   createHome: "/onboarding/create-home",
   addRooms: "/onboarding/add-rooms",
@@ -16,8 +17,12 @@ export const routes = {
   more: "/tabs/more",
   addRoom: "/setup/add-room",
   addDevice: "/setup/add-device",
+  homeSettings: "/settings/home",
+  safetyChecklist: "/safety-checklist",
+  simulator: "/simulator",
   activity: "/activity",
   roomDetail: (roomId: string) => `/rooms/${roomId}`,
+  deviceDetail: (deviceId: string) => `/devices/${deviceId}`,
   alertDetail: (alertId: string) => `/alerts/${alertId}`,
 } as const;
 

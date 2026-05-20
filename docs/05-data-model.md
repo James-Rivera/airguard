@@ -39,6 +39,7 @@ Alerts belong to homes and rooms, with optional device linkage. Status values in
 
 Source of truth: `activity_logs`.
 Activity logs belong to homes and optionally users. Store actions create logs after meaningful events.
+Scenario runs are recorded as activity logs with category/type `demo` until a dedicated `scenario_runs` table is needed.
 
 ## Relationships
 

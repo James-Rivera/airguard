@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { AuthBackButton } from "@/components/ui/AuthBackButton";
@@ -16,6 +16,22 @@ export default function LoginRoute() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const keyboardOpen = keyboardHeight > 0;
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardDidShow", (event) => setKeyboardHeight(event.endCoordinates.height));
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  function scrollToField(y: number) {
+    setTimeout(() => scrollRef.current?.scrollTo({ y, animated: true }), 80);
+  }
 
   function goBack() {
     if (router.canGoBack()) {
@@ -40,13 +56,23 @@ export default function LoginRoute() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <KeyboardAvoidingView style={styles.keyboard} behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[
+            styles.screen,
+            keyboardOpen && styles.screenKeyboard,
+            keyboardOpen ? { paddingBottom: keyboardHeight + spacing.xl } : null,
+          ]}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <AuthBackButton onPress={goBack} />
 
-          <AppText style={styles.title}>Log in</AppText>
+          <AppText style={[styles.title, keyboardOpen && styles.titleKeyboard]}>Log in</AppText>
 
-          <View style={styles.form}>
+          <View style={[styles.form, keyboardOpen && styles.formKeyboard]}>
             <AuthField
               label="Email Address"
               icon="email"
@@ -55,6 +81,7 @@ export default function LoginRoute() {
               keyboardType="email-address"
               autoComplete="email"
               textContentType="emailAddress"
+              onFocus={() => scrollToField(112)}
             />
             <AuthField
               label="Password"
@@ -66,6 +93,7 @@ export default function LoginRoute() {
               textContentType="password"
               rightIcon="eye"
               onRightPress={() => setShowPassword((current) => !current)}
+              onFocus={() => scrollToField(184)}
             />
             {error ? <AppText style={styles.error}>{error}</AppText> : null}
           </View>
@@ -73,12 +101,12 @@ export default function LoginRoute() {
           <Pressable
             onPress={submit}
             disabled={!email.trim() || !password || isSubmitting}
-            style={[styles.signInButton, (!email.trim() || !password || isSubmitting) && styles.disabledButton]}
+            style={[styles.signInButton, keyboardOpen && styles.signInButtonKeyboard, (!email.trim() || !password || isSubmitting) && styles.disabledButton]}
           >
             <AppText style={styles.signInText}>{isSubmitting ? "Signing in" : "Sign In"}</AppText>
           </Pressable>
 
-          <Pressable onPress={() => router.replace(routes.createAccount)} style={styles.signUpWrap}>
+          <Pressable onPress={() => router.replace(routes.createAccount)} style={[styles.signUpWrap, keyboardOpen && styles.signUpWrapKeyboard]}>
             <AppText style={styles.newUser}>
               I'm a new user. <AppText style={styles.signUpText}>Sign up</AppText>
             </AppText>
@@ -107,6 +135,10 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     width: "100%",
   },
+  screenKeyboard: {
+    flexGrow: 0,
+    paddingTop: 24,
+  },
   title: {
     color: colors.black,
     fontSize: 32,
@@ -114,9 +146,16 @@ const styles = StyleSheet.create({
     lineHeight: 39,
     marginTop: 78,
   },
+  titleKeyboard: {
+    marginTop: 36,
+  },
   form: {
     gap: 37,
     marginTop: 38,
+  },
+  formKeyboard: {
+    gap: 22,
+    marginTop: 26,
   },
   error: {
     color: colors.critical,
@@ -134,6 +173,9 @@ const styles = StyleSheet.create({
     marginTop: 40,
     ...shadows.button,
   },
+  signInButtonKeyboard: {
+    marginTop: 28,
+  },
   disabledButton: {
     opacity: 0.55,
   },
@@ -145,6 +187,9 @@ const styles = StyleSheet.create({
   signUpWrap: {
     alignItems: "center",
     marginTop: 38,
+  },
+  signUpWrapKeyboard: {
+    marginTop: 22,
   },
   newUser: {
     color: colors.fieldLabel,

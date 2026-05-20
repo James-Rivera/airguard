@@ -12,6 +12,27 @@ export async function signUp(email: string, password: string, name: string) {
   return data;
 }
 
+export async function verifySignUpCode(email: string, token: string) {
+  assertSupabaseConfigured();
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "signup",
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function resendSignUpCode(email: string) {
+  assertSupabaseConfigured();
+  const { data, error } = await supabase.auth.resend({
+    email,
+    type: "signup",
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function signIn(email: string, password: string) {
   assertSupabaseConfigured();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });

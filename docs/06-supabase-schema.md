@@ -44,4 +44,6 @@ Home creation uses the `public.create_home_for_current_user(home_name, address_l
 
 ## Reading/Alert Database Writes
 
-Simulation controls insert real `readings` rows. Critical smoke simulation inserts real `alerts` rows and related `activity_logs`.
+Scenario controls insert real `readings` rows, update room/device status where appropriate, create warning or critical `alerts`, resolve active alerts for reset-to-normal, and create related `activity_logs`.
+
+No dedicated `scenario_runs`, `notifications`, `reports`, or `alert_events` tables are required for the current MVP scenario engine.

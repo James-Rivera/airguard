@@ -176,6 +176,7 @@ export function normalizeDeviceType(value: string): DeviceType {
 }
 
 function normalizeRoomIcon(value: string): Room["icon"] {
+  if (value === "office" || value === "nursery") return value;
   if (value === "kitchen" || value === "bedroom" || value === "bathroom" || value === "dining-room") return value;
   return "living-room";
 }

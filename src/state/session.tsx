@@ -13,5 +13,7 @@ export function useSession() {
     signIn: actions.signIn,
     signOut: actions.logout,
     createAccount: actions.signUp,
+    verifySignUpCode: actions.verifySignUpCode,
+    resendSignUpCode: actions.resendSignUpCode,
   };
 }

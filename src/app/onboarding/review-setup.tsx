@@ -12,8 +12,8 @@ import { colors, fonts, spacing } from "@/theme/index";
 
 export default function ReviewSetupRoute() {
   const { state, actions, error, isLoading } = useAirGuard();
-  const sensorType = state.pairingDraft.type ?? state.devices[0]?.type ?? "air-sensor";
-  const roomName = state.pairingDraft.roomName ?? state.rooms.find((room) => room.id === state.pairingDraft.roomId)?.name ?? state.rooms[0]?.name ?? "Bedroom";
+  const sensorType = state.pairingDraft.type;
+  const roomName = state.pairingDraft.roomName ?? state.rooms.find((room) => room.id === state.pairingDraft.roomId)?.name;
   const ready = Boolean(state.home && roomName && sensorType);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function ReviewSetupRoute() {
         </View>
         <View style={styles.divider} />
         <View style={styles.detailGrid}>
-          <SummaryDetail label="ASSIGNED ROOM" value={roomName} icon="living-room" />
+          <SummaryDetail label="ASSIGNED ROOM" value={roomName ?? "Choose a room"} icon="living-room" />
           <SummaryDetail label="SENSOR PROFILE" value={sensorLabel(sensorType)} icon="air" />
         </View>
       </View>
@@ -91,7 +91,8 @@ function SummaryDetail({ label, value, icon }: { label: string; value: string; i
   );
 }
 
-function sensorLabel(type: DeviceType) {
+function sensorLabel(type?: DeviceType) {
+  if (!type) return "Choose a sensor";
   if (type === "smoke-detector") return "Smoke Sensor";
   if (type === "co2-sensor") return "CO₂ Sensor";
   return "Air Quality";

@@ -27,6 +27,7 @@ function menuIcon(icon: string, label: string): AppIconName {
   const value = icon.toLowerCase();
   if (value === "settings" || label === "Home Settings" || label === "Settings") return "settings";
   if (value === "rooms" || label === "Rooms") return "rooms";
+  if (value === "sensor" || label === "AirGuard Sensor Console") return "sensor";
   if (value === "device" || value === "devices" || label === "Devices") return "device";
   if (value === "note" || label === "Activity" || label === "Reports") return "note";
   if (value === "check" || label === "Safety Checklist") return "check";

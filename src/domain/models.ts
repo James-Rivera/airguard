@@ -29,7 +29,7 @@ export type Home = {
 export type Room = {
   id: string;
   name: string;
-  icon: "bedroom" | "living-room" | "bathroom" | "kitchen" | "dining-room";
+  icon: "bedroom" | "living-room" | "bathroom" | "kitchen" | "dining-room" | "office" | "nursery";
   status: SafetyStatus;
   createdAt: string;
 };

@@ -7,7 +7,8 @@ import { AppCard } from "@/components/ui/AppCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppScreen, SectionHeader } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
-import { getAlertById, getDevicesByRoomId } from "@/domain/selectors";
+import { getAlertById, getDevicesByRoomId, getLatestReadingForDevice } from "@/domain/selectors";
+import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { colors, spacing } from "@/theme/index";
 
@@ -35,7 +36,7 @@ export default function AlertDetailRoute() {
       ) : null}
       <SectionHeader title="Related Devices" />
       {getDevicesByRoomId(state, alert.roomId).map((device) => (
-        <DeviceCard key={device.id} device={device} />
+        <DeviceCard key={device.id} device={device} reading={getLatestReadingForDevice(state, device.id)} onPress={() => router.push(routes.deviceDetail(device.id))} />
       ))}
     </AppScreen>
   );

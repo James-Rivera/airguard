@@ -8,16 +8,14 @@ import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { menuItems } from "@/domain/seed";
 import { initials } from "@/lib/formatters";
-import { useAirGuard } from "@/state/airguard-store";
+import { routes } from "@/navigation/routes";
 import { useSession } from "@/state/session";
 import { colors, fonts, radius, spacing } from "@/theme/index";
 
 export default function MoreRoute() {
-  const { user, signOut } = useSession();
-  const { actions } = useAirGuard();
+  const { user, session, signOut } = useSession();
   const safeUser = user ?? { name: "AirGuard User", role: "homeowner" as const };
-  const canUseOperations = safeUser.role === "administrator" || safeUser.role === "member";
-  const isAdministrator = safeUser.role === "administrator";
+  const canUseOperations = Boolean(user || session?.isDemo);
 
   async function logout() {
     await signOut();
@@ -39,42 +37,39 @@ export default function MoreRoute() {
         {menuItems.map((item) => (
           <MenuItemCard key={item.label} label={item.label} detail={item.detail} icon={item.icon} onPress={menuAction(item.label)} />
         ))}
+        {canUseOperations ? (
+          <MenuItemCard
+            label="AirGuard Sensor Console"
+            detail="Apply controlled sensor events"
+            icon="sensor"
+            onPress={() => router.push(routes.simulator)}
+          />
+        ) : null}
       </View>
       <AppButton label="Logout" onPress={logout} variant="danger" style={styles.logoutButton} />
-      {canUseOperations ? (
-        <AppCard subtleShadow style={styles.toolsCard}>
-          <View style={styles.toolsHeader}>
-            <AppText style={styles.toolsTitle}>Safety tools</AppText>
-            <AppText variant="caption">Operations</AppText>
-          </View>
-          <AppButton label="Run Kitchen Smoke Alert" onPress={actions.triggerKitchenSmokeAlert} variant="danger" />
-          <AppButton label="Set Normal Readings" onPress={actions.simulateNormalReadings} variant="secondary" />
-          <AppButton label="Set Warning Readings" onPress={actions.simulateWarningReadings} variant="secondary" />
-          {isAdministrator ? <AppButton label="Reset Home Data" onPress={actions.resetDemoData} variant="secondary" /> : null}
-          {isAdministrator ? <AppButton label="Reset Setup Progress" onPress={actions.clearOnboarding} variant="secondary" /> : null}
-        </AppCard>
-      ) : null}
     </AppScreen>
   );
 }
 
 function menuAction(label: string) {
+  if (label === "Home Settings") return () => router.push(routes.homeSettings);
   if (label === "Rooms") return () => router.push("/tabs/rooms");
   if (label === "Devices") return () => router.push("/tabs/devices");
   if (label === "Activity") return () => router.push("/activity");
+  if (label === "Safety Checklist") return () => router.push(routes.safetyChecklist);
   return undefined;
 }
 
 function roleLabel(role: string) {
   if (role === "administrator") return "Administrator";
   if (role === "homeowner") return "Homeowner";
-  return "Safety Officer";
+  return "Household Member";
 }
 
 function accountLabel(role: string) {
   if (role === "administrator") return "Admin access";
   if (role === "homeowner") return "Home monitoring";
-  return "Safety operations";
+  return "Shared home monitoring";
 }
 
 const styles = StyleSheet.create({
@@ -111,18 +106,5 @@ const styles = StyleSheet.create({
   logoutButton: {
     borderRadius: 18,
     height: 58,
-  },
-  toolsCard: {
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  toolsHeader: {
-    gap: 2,
-  },
-  toolsTitle: {
-    color: colors.textPrimary,
-    fontFamily: fonts.semiBold,
-    fontSize: 15,
-    lineHeight: 20,
   },
 });

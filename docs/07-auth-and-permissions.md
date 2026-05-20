@@ -2,11 +2,11 @@
 
 ## Supabase Auth
 
-AirGuard uses Supabase Auth for real sign up, login, logout, and session restoration. `src/lib/supabase.ts` configures the Supabase client with AsyncStorage for auth session support.
+AirGuard uses Supabase Auth for real sign up, 6-digit email code verification, login, logout, and session restoration. `src/lib/supabase.ts` configures the Supabase client with AsyncStorage for auth session support.
 
 ## Profile Creation
 
-The database migration defines `handle_new_user`, which creates a profile after auth user creation. The app also calls profile service upsert helpers to ensure a profile exists for the authenticated user.
+The database migration defines `handle_new_user`, which creates a profile after auth user creation. The app also calls profile service upsert helpers to ensure a profile exists after the user has an active verified session.
 
 ## Onboarding Complete
 
@@ -29,6 +29,12 @@ RLS policies use `auth.uid()` and `public.is_home_member(home_id)` to protect ho
 - Do not treat seed templates as the app database.
 - Do not bypass membership checks in client code and assume that is security.
 - Do not store persistent app data primarily in AsyncStorage.
+
+## Operations Data Isolation
+
+New real accounts must start clean. Template rooms, devices, readings, alerts, and event runs may be created only when the authenticated user explicitly completes setup or applies a controlled sensor event for an active home they can access. Normal homeowner accounts should not receive global seed data.
+
+The web sensor console must run as an authenticated, RLS-protected client. Phase 1 access allows authenticated users to apply sensor events only against the active home returned through `home_members` membership. Scenario services still use the normal anon client, so Supabase RLS prevents users from mutating homes they do not belong to. The console must not expose a Supabase service role key in browser or mobile code.
 
 ## Service Role Key
 

@@ -6,7 +6,7 @@ import { SummaryCard } from "@/components/airguard/SummaryCard";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getDeviceSummary, getDevices } from "@/domain/selectors";
+import { getDeviceSummary, getDevices, getLatestReadingForDevice } from "@/domain/selectors";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { colors, radius, spacing } from "@/theme/index";
@@ -25,7 +25,7 @@ export default function DevicesRoute() {
         <EmptyState title="No devices yet" message="Pair a sensor profile with a room to start monitoring." actionLabel="Add Device" onAction={() => router.push(routes.addDevice)} />
       ) : null}
       {devices.map((device) => (
-        <DeviceCard key={device.id} device={device} />
+        <DeviceCard key={device.id} device={device} reading={getLatestReadingForDevice(state, device.id)} onPress={() => router.push(routes.deviceDetail(device.id))} />
       ))}
     </AppScreen>
   );

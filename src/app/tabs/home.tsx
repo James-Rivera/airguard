@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { AlertCard } from "@/components/airguard/AlertCard";
@@ -12,7 +12,7 @@ import type { Reading } from "@/domain/models";
 import { getDashboardSummary, getReadingsByRoomId } from "@/domain/selectors";
 import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
-import { colors, fonts, gradient, layout, spacing } from "@/theme/index";
+import { colors, fonts, gradient, layout, spacing, radius } from "@/theme/index";
 
 const dashboardReadingTypes: Array<{ type: Reading["type"]; label: string }> = [
   { type: "co2", label: "CO2" },
@@ -31,21 +31,31 @@ export default function HomeRoute() {
   const contentWidth = shellWidth - layout.screenPadding * 2;
   const readingGap = spacing.md;
   const readingCardWidth = Math.floor((contentWidth - readingGap) / 2);
-  const addButtonWidth = shellWidth < 360 ? 112 : 127;
+  const compactHeader = shellWidth < 360;
+  const brandSize = compactHeader ? 30 : 32;
+  const brandLineHeight = compactHeader ? 36 : 39;
+  const addButtonHeight = compactHeader ? 42 : 46;
+  const addButtonWidth = compactHeader ? 116 : 127;
+  const addButtonTextSize = compactHeader ? 13 : 14;
   const dashboardReadings = useMemo(() => getDashboardReadingTiles(state.readings, state.devices.map((device) => device.roomId)), [state.devices, state.readings]);
 
   return (
     <AppScreen>
       <View style={styles.header}>
         <View style={styles.headerText}>
-          <AppText style={styles.brand}>
-            <AppText style={styles.brandAir}>Air</AppText>Guard
+          <AppText style={[styles.brand, { fontSize: brandSize, lineHeight: brandLineHeight }]}>
+            <Text style={styles.brandAir}>Air</Text>Guard
           </AppText>
           <AppText style={styles.greeting}>Good morning, {userName.split(" ")[0]}!</AppText>
         </View>
         <Pressable onPress={() => router.push(routes.addDevice)} accessibilityRole="button">
-          <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.addButton, { width: addButtonWidth }]}>
-            <AppText style={styles.addText}>Add Device</AppText>
+          <LinearGradient
+            colors={gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.addButton, { height: addButtonHeight, width: addButtonWidth }]}
+          >
+            <AppText style={[styles.addText, { fontSize: addButtonTextSize }]}>Add Device</AppText>
           </LinearGradient>
         </Pressable>
       </View>
@@ -95,7 +105,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontFamily: fonts.bold,
     fontSize: 32,
-    lineHeight: 38,
+    lineHeight: 39,
   },
   brandAir: {
     color: colors.brandCyan,
@@ -105,12 +115,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontFamily: fonts.medium,
     fontSize: 12,
-    lineHeight: 17,
+    lineHeight: 16,
   },
   addButton: {
     alignItems: "center",
+    alignSelf: "flex-start",
     borderRadius: 8,
-    height: 46,
     justifyContent: "center",
     overflow: "hidden",
   },

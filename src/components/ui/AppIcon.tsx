@@ -30,6 +30,8 @@ export type AppIconName =
   | "kitchen"
   | "bathroom"
   | "dining-room"
+  | "office"
+  | "nursery"
   | "smoke"
   | "co2";
 
@@ -273,6 +275,28 @@ export function AppIcon({ name, size = 24, color = colors.brand, secondaryColor 
         <Circle cx={12} cy={6} r={3} stroke={stroke} strokeWidth={2} />
         <Path d="M5 12h14" stroke={stroke} strokeWidth={2} strokeLinecap="round" />
         <Path d="M7 12v8M17 12v8M7 17h10" stroke={stroke} strokeWidth={2} strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  if (name === "office") {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Rect x={5} y={7} width={14} height={10} rx={2} stroke={stroke} strokeWidth={2} />
+        <Path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" stroke={stroke} strokeWidth={2} />
+        <Path d="M4 20h16M8 17v3M16 17v3" stroke={secondaryColor} strokeWidth={2} strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  if (name === "nursery") {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Path d="M5 10h14l-1.5 8h-11L5 10Z" stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
+        <Path d="M8 10V8a4 4 0 0 1 8 0v2" stroke={stroke} strokeWidth={2} strokeLinecap="round" />
+        <Circle cx={8} cy={20} r={1} fill={secondaryColor} />
+        <Circle cx={16} cy={20} r={1} fill={secondaryColor} />
+        <Path d="M10 14h4" stroke={secondaryColor} strokeWidth={2} strokeLinecap="round" />
       </Svg>
     );
   }

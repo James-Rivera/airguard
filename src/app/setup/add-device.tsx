@@ -6,7 +6,9 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { TextField } from "@/components/ui/TextField";
+import { routes } from "@/navigation/routes";
 import { useAirGuard } from "@/state/airguard-store";
 import { colors, radius, spacing } from "@/theme/index";
 
@@ -33,24 +35,30 @@ export default function AddDeviceRoute() {
 
   return (
     <AppScreen title="Add Device" subtitle="Pair a device to your home." onBack={() => router.back()} noBottomPadding>
-      <AppText style={styles.label}>Device Type</AppText>
-      <View style={styles.wrap}>
-        {deviceTypes.map((item) => (
-          <Pressable key={item.value} onPress={() => setType(item.value)} style={[styles.pill, type === item.value && styles.pillActive]}>
-            <AppText style={[styles.pillText, type === item.value && styles.pillTextActive]}>{item.label}</AppText>
-          </Pressable>
-        ))}
-      </View>
-      <AppText style={styles.label}>Room</AppText>
-      <AppCard style={styles.rooms}>
-        {state.rooms.map((room) => (
-          <Pressable key={room.id} onPress={() => setRoomId(room.id)} style={[styles.room, roomId === room.id && styles.roomActive]}>
-            <AppText style={styles.roomText}>{room.name}</AppText>
-          </Pressable>
-        ))}
-      </AppCard>
-      <TextField label="Device Name" value={name} onChangeText={setName} placeholder="Kitchen Smoke Detector" />
-      <AppButton label="Pair and Add Device" onPress={submit} disabled={!roomId} />
+      {state.rooms.length === 0 ? (
+        <EmptyState title="Add a room first" message="Devices need a room assignment before AirGuard can monitor them." actionLabel="Add Room" onAction={() => router.replace(routes.addRoom)} />
+      ) : (
+        <>
+          <AppText style={styles.label}>Device Type</AppText>
+          <View style={styles.wrap}>
+            {deviceTypes.map((item) => (
+              <Pressable key={item.value} onPress={() => setType(item.value)} style={[styles.pill, type === item.value && styles.pillActive]}>
+                <AppText style={[styles.pillText, type === item.value && styles.pillTextActive]}>{item.label}</AppText>
+              </Pressable>
+            ))}
+          </View>
+          <AppText style={styles.label}>Room</AppText>
+          <AppCard style={styles.rooms}>
+            {state.rooms.map((room) => (
+              <Pressable key={room.id} onPress={() => setRoomId(room.id)} style={[styles.room, roomId === room.id && styles.roomActive]}>
+                <AppText style={styles.roomText}>{room.name}</AppText>
+              </Pressable>
+            ))}
+          </AppCard>
+          <TextField label="Device Name" value={name} onChangeText={setName} placeholder="Kitchen Smoke Detector" />
+          <AppButton label="Pair and Add Device" onPress={submit} disabled={!roomId} />
+        </>
+      )}
     </AppScreen>
   );
 }

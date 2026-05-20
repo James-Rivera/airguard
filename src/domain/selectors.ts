@@ -1,4 +1,4 @@
-import type { AirGuardData, AlertStatus, DeviceType, SafetyStatus } from "./models";
+import type { AirGuardData, AlertStatus, DeviceType, Reading, SafetyStatus } from "./models";
 
 const rank: Record<SafetyStatus, number> = {
   good: 0,
@@ -19,12 +19,28 @@ export function getDevices(state: AirGuardData) {
   return state.devices;
 }
 
+export function getDeviceById(state: AirGuardData, deviceId: string) {
+  return state.devices.find((device) => device.id === deviceId);
+}
+
 export function getDevicesByRoomId(state: AirGuardData, roomId: string) {
   return state.devices.filter((device) => device.roomId === roomId);
 }
 
 export function getReadingsByRoomId(state: AirGuardData, roomId: string) {
   return state.readings.filter((reading) => reading.roomId === roomId);
+}
+
+export function getReadingsByDeviceId(state: AirGuardData, deviceId: string) {
+  const device = getDeviceById(state, deviceId);
+  const deviceReadings = state.readings.filter((reading) => reading.deviceId === deviceId);
+  if (deviceReadings.length > 0 || !device) return deviceReadings;
+  return getReadingsByRoomId(state, device.roomId);
+}
+
+export function getLatestReadingForDevice(state: AirGuardData, deviceId: string): Reading | undefined {
+  const readings = getReadingsByDeviceId(state, deviceId);
+  return readings.find((reading) => reading.type === "co2") ?? readings.find((reading) => reading.type === "smoke") ?? readings[0];
 }
 
 export function getActiveAlerts(state: AirGuardData) {

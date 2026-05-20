@@ -12,8 +12,10 @@ export const layout = {
   maxPhoneWidth: 390,
   screenPadding: 25,
   bottomNavHorizontalMargin: 20,
+  bottomNavRegionHeight: 88,
   bottomNavHeight: 72,
-  bottomNavPadding: 124,
+  bottomNavItemHeight: 60,
+  bottomNavPadding: 120,
   buttonHeight: 48,
   inputHeight: 52,
 };
