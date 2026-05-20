@@ -20,6 +20,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 34,
     justifyContent: "center",
+    minWidth: 74,
     paddingHorizontal: spacing.md,
   },
   active: {

@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, type TextProps, StyleSheet } from "react-native";
-import { colors, typography } from "@/theme/index";
+import { colors, fonts, typography } from "@/theme/index";
 
 type Variant = "title" | "subtitle" | "body" | "caption" | "muted" | "metric";
 
@@ -11,6 +11,7 @@ export function AppText({ variant = "body", style, ...props }: TextProps & { var
 const styles = StyleSheet.create({
   base: {
     color: colors.textPrimary,
+    fontFamily: fonts.regular,
     letterSpacing: 0,
   },
   title: typography.screenTitle,

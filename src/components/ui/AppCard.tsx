@@ -5,10 +5,11 @@ import { colors, radius, shadows, spacing } from "@/theme/index";
 type Props = ViewProps & {
   padded?: "sm" | "md" | "lg" | false;
   shadow?: boolean;
+  subtleShadow?: boolean;
 };
 
-export function AppCard({ padded = "md", shadow = true, style, ...props }: Props) {
-  return <View {...props} style={[styles.card, shadow && shadows.card, padded && styles[padded], style]} />;
+export function AppCard({ padded = "md", shadow = true, subtleShadow = false, style, ...props }: Props) {
+  return <View {...props} style={[styles.card, shadow && (subtleShadow ? shadows.cardSubtle : shadows.card), padded && styles[padded], style]} />;
 }
 
 const styles = StyleSheet.create({

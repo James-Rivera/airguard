@@ -1,10 +1,10 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { AppText } from "./AppText";
-import { colors, radius, spacing, statusColors, statusSurfaces } from "@/theme/index";
-import type { SafetyStatus } from "@/domain/models";
+import { colors, fonts, radius, spacing, statusColors, statusSurfaces } from "@/theme/index";
+import type { AlertStatus, SafetyStatus } from "@/domain/models";
 
-type BadgeStatus = SafetyStatus | "online" | "active" | "resolved";
+type BadgeStatus = SafetyStatus | AlertStatus | "online" | "pairing";
 
 const labels: Record<BadgeStatus, string> = {
   good: "Good",
@@ -12,7 +12,9 @@ const labels: Record<BadgeStatus, string> = {
   critical: "Critical",
   offline: "Offline",
   online: "Online",
+  pairing: "Pairing",
   active: "Active",
+  checking: "Checking",
   resolved: "Resolved",
 };
 
@@ -33,8 +35,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   label: {
+    fontFamily: fonts.semiBold,
     fontSize: 12,
-    fontWeight: "600",
     lineHeight: 16,
   },
 });

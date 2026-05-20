@@ -14,16 +14,16 @@ export function IconButton({ label, onPress, style }: { label: string; onPress: 
 const styles = StyleSheet.create({
   button: {
     alignItems: "center",
-    backgroundColor: colors.textSecondary,
+    backgroundColor: colors.iconSurface,
     borderRadius: radius.pill,
-    height: 25,
+    height: 42,
     justifyContent: "center",
-    width: 25,
+    width: 42,
   },
   label: {
-    color: colors.white,
-    fontSize: 17,
+    color: colors.textPrimary,
+    fontSize: 20,
     fontWeight: "700",
-    lineHeight: 18,
+    lineHeight: 22,
   },
 });
