@@ -112,6 +112,20 @@ Start Expo:
 npm run start
 ```
 
+To launch specifically for Expo Go instead of the web browser, use:
+
+```bash
+npm run start:go
+```
+
+That starts Expo in Go mode with tunnel support, which is the most reliable option when phone and PC are not on the same network. The project now includes `@expo/ngrok` locally, so Expo can resolve tunnel mode without relying on a global install.
+
+If you want the plain local-network path instead, run:
+
+```bash
+npx expo start --go
+```
+
 Supabase setup:
 
 ```bash

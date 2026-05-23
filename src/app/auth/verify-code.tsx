@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { InteractionManager, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { AuthBackButton } from "@/components/ui/AuthBackButton";
@@ -23,11 +23,13 @@ export default function VerifyCodeRoute() {
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", (event) => setKeyboardHeight(event.endCoordinates.height));
     const hideSub = Keyboard.addListener("keyboardDidHide", () => setKeyboardHeight(0));
-    const focusTimer = setTimeout(() => inputRef.current?.focus(), 250);
+    const focusTask = InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    });
     return () => {
       showSub.remove();
       hideSub.remove();
-      clearTimeout(focusTimer);
+      focusTask.cancel();
     };
   }, []);
 
@@ -82,8 +84,12 @@ export default function VerifyCodeRoute() {
 
           <TextInput
             ref={inputRef}
+            autoFocus
             value={code}
             onChangeText={updateCode}
+            caretHidden
+            contextMenuHidden
+            inputMode="numeric"
             keyboardType="number-pad"
             maxLength={6}
             textContentType="oneTimeCode"
@@ -152,6 +158,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.xs,
     justifyContent: "space-between",
+    position: "relative",
     marginTop: 42,
   },
   codeBox: {
@@ -174,9 +181,13 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   hiddenInput: {
-    height: 1,
-    opacity: 0,
-    width: 1,
+    height: 48,
+    left: 0,
+    opacity: 0.02,
+    position: "absolute",
+    top: 0,
+    width: "100%",
+    zIndex: 1,
   },
   message: {
     color: colors.critical,

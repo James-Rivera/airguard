@@ -24,7 +24,7 @@ export default function RootLayout() {
           <Stack.Screen name="auth/login" />
           <Stack.Screen name="auth/create-account" />
           <Stack.Screen name="auth/verify-code" />
-          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="onboarding/index" />
           <Stack.Screen name="setup/add-room" />
           <Stack.Screen name="setup/add-device" />
           <Stack.Screen name="settings/home" />
